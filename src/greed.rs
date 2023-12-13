@@ -4,7 +4,7 @@
 
 // ----- ENVIRONMENT SETUP ----- //
 
-pub const MAX_SCORE: u32 = 100;
+pub const MAX_SCORE: u32 = 500;
 pub const SIDES: u32 = 6;
 
 // ----- IMPORTS ----- //
