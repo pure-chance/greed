@@ -1,11 +1,11 @@
-// ----- ALLOW DEAD CODE ----- //
+// ----- ALLOW DEAD CODE IE STOP THE COMPILER FROM YELLING AT ME ----- //
 
 #![allow(dead_code)]
 
 // ----- ENVIRONMENT SETUP ----- //
 
-pub const MAX_SCORE: u32 = 500;
-pub const SIDES: u32 = 6;
+use crate::MAX_SCORE;
+use crate::SIDES;
 
 // ----- IMPORTS ----- //
 // bigint
@@ -18,7 +18,6 @@ use num_traits::{Zero, One, ToPrimitive};
 // csv stuff
 use std::error::Error;
 use csv::Writer;
-use derive_getters::Getters;
 // memoization
 use memoize::memoize;
 
@@ -58,7 +57,7 @@ fn pmf(total: u32, n: u32, s: u32) -> f64 {
 
 // ----- SETUP GREED AND STATES ----- //
 
-#[derive(Copy, Clone, Default, Getters)] // IMPORTANT
+#[derive(Copy, Clone, Default)] // IMPORTANT
 pub struct State {
     best_n: u32,
     best_rating: f64
@@ -70,6 +69,8 @@ impl State {
 }
 
 pub struct Greed {
+    // MAX_SCORE: u32,
+    // SIDES: u32,
     // the stuff we aim to find
     terminal: [[State; (MAX_SCORE+1) as usize]; (MAX_SCORE+1) as usize],
     normal: [[State; (MAX_SCORE+1) as usize]; (MAX_SCORE+1) as usize]
@@ -82,7 +83,7 @@ impl Greed {
         if last_turn { return self.terminal[opponent_score as usize][player_score as usize]; }
         else { return self.normal[opponent_score as usize][player_score as usize]; }
     }
-    pub fn set_state(&mut self, player_score: u32, opponent_score: u32, last_turn: bool, result: State) {
+    fn set_state(&mut self, player_score: u32, opponent_score: u32, last_turn: bool, result: State) {
         if last_turn { self.terminal[opponent_score as usize][player_score as usize] = result; }
         else { self.normal[opponent_score as usize][player_score as usize] = result; }
     }
@@ -94,9 +95,15 @@ impl Greed {
     }
     pub fn setup() -> Greed {
         return Greed {
+            // MAX_SCORE: max_score,
+            // SIDES: sides,
             terminal: [[State::default(); (MAX_SCORE+1) as usize]; (MAX_SCORE+1) as usize],
             normal: [[State::default(); (MAX_SCORE+1) as usize]; (MAX_SCORE+1) as usize],
         };
+    }
+    pub fn calculate_optimal_states(&mut self) {
+        self.apply_optimal_terminal_actions();
+        self.apply_optimal_normal_actions();
     }
 
     // ----- FIND THE OPTIMAL N AND P FOR THE LAST ROLL BOARD ----- //
@@ -119,7 +126,7 @@ impl Greed {
         }
         return rating;
     }
-    pub fn calculate_optimal_terminal_action(&mut self, player_score: u32, opponent_score: u32) -> State {
+    fn calculate_optimal_terminal_action(&mut self, player_score: u32, opponent_score: u32) -> State {
         if player_score > opponent_score {
             // if you are already ahead, you win 100% of the time by doing nothing
             return State { best_n: 0, best_rating: 1.0 };
@@ -142,7 +149,7 @@ impl Greed {
             best_rating: optimal_rating
         };
     }
-    pub fn apply_optimal_terminal_actions(&mut self) {
+    fn apply_optimal_terminal_actions(&mut self) {
         for player_score in 0..=MAX_SCORE {
             for opponent_score in 0..=MAX_SCORE {
                 let result: State = self.calculate_optimal_terminal_action(player_score, opponent_score);
@@ -176,10 +183,10 @@ impl Greed {
         }
         return rating;
     }
-    pub fn calculate_optimal_normal_action(&mut self, player_score: u32, opponent_score: u32) -> State {
+    fn calculate_optimal_normal_action(&mut self, player_score: u32, opponent_score: u32) -> State {
         let mut optimal_roll: u32 = 0; let mut optimal_rating: f64 = 0.0;
         // max_reasonable n still need tweaking
-        let max_reasonable_n = 2 * (MAX_SCORE - player_score) / (SIDES + 1) + 1;
+        let max_reasonable_n = 2 * (MAX_SCORE - player_score) / (SIDES + 1) + 2; // +2 for safety of checking high enough
         for dice_rolled in 0..=max_reasonable_n {
             let new_rating = self.calculate_normal_rating(player_score, opponent_score, dice_rolled);
             if new_rating > optimal_rating {
@@ -192,7 +199,7 @@ impl Greed {
             best_rating: optimal_rating
         };
     }
-    pub fn apply_optimal_normal_actions(&mut self) {
+    fn apply_optimal_normal_actions(&mut self) {
         for order in 0..=2*MAX_SCORE {
             for place in 0..=min(order, 2*MAX_SCORE-order) {
                 // calculate the player and opponet score for this order and place

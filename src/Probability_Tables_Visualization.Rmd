@@ -13,7 +13,7 @@ library(dplyr)
 ```{r, terminal_states_table}
 terminal_data <- read.csv("./results/terminal_states.csv")
 
-ggplot(terminal_data, aes(player_score, opponent_score, fill=best_rating)) + 
+ggplot(terminal_data, aes(x=player_score, y=opponent_score, fill=best_rating)) + 
   geom_tile() +
   geom_text(aes(label = best_n), size=2.5) + 
   scale_fill_gradientn(colours = c("red", "blue")) +
@@ -26,7 +26,7 @@ ggplot(terminal_data, aes(player_score, opponent_score, fill=best_rating)) +
 ```{r, normal_states_table}
 normal_data <- read.csv("./results/normal_states.csv")
 
-ggplot(normal_data, aes(player_score, opponent_score, fill=best_rating)) + 
+ggplot(normal_data, aes(x=player_score, y=opponent_score, fill=best_rating)) + 
   geom_tile() +
   geom_text(aes(label = best_n), size=2.5) + 
   scale_fill_gradientn(colours = c("red", "blue")) +
