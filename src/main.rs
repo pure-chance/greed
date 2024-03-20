@@ -1,7 +1,7 @@
 // ----- ENVIRONMENT VARIABLES ----- //
 
-pub const MAX_SCORE: u32 = 10;
-pub const SIDES: u32 = 3;
+pub const MAX_SCORE: u32 = 100;
+pub const SIDES: u32 = 6;
 
 // ----- PACKAGES ----- //
 
@@ -9,14 +9,14 @@ mod greed;
 use greed::Greed;
 use std::process;
 
+use std::error::Error;
+
 // ----- MAIN ----- //
 
 fn main() 
 {
     // generate Greed object
     let mut _greed: Greed = Greed::setup();
-    // calculate optimal actions and rewards
-    _greed.calculate_optimal_states();
     // write to csv
     if let Err(err) = _greed.write_states() {
         println!("{}", err);
