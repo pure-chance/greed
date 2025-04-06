@@ -1,0 +1,29 @@
+anderson2018introduction:
+  type: book
+  title: Introduction to Probability
+  author:
+    - Anderson, David F.
+    - Seppäläinen, Timo
+    - Valkó, Benedek
+  date: 2018
+  publisher:
+    name: Cambridge University Press
+    location: Cambridge
+singh_prob_sum_dice:
+  type: article
+  title: "The Probability Distribution of the Sum of Several Dice: Slot Applications"
+  author:
+    - Singh, A. K.
+    - Dalpatadu, R. J.
+    - Lucas, A. F.
+  note: \\url\{https://digitalscholarship.unlv.edu/cgi/viewcontent.cgi?article=1025&context=grrj\}, Accessed 12 December 2023
+  parent:
+    type: periodical
+    title: Gaming Research & Review Journal
+analyticscheck2020dice:
+  type: web
+  title: Deriving the Probability Distribution for the Sum of Many Dice Rolls
+  author: Analytics Check
+  date: 2020-02-20
+  url: https://www.analyticscheck.net/posts/sums-dice-rolls
+  note: Accessed 11 December 2023
