@@ -1,7 +1,8 @@
 library(ggplot2)
 library(dplyr)
 
-greed <- data.frame(read.csv("greed.csv")) %>% mutate(last = if_else(last == "true", TRUE, FALSE))
+args <- commandArgs(trailingOnly = TRUE)
+greed <- data.frame(read.csv(args)) %>% mutate(last = if_else(last == "true", TRUE, FALSE))
 terminal_states <- greed %>% filter(last == T)
 normal_states <- greed %>% filter(last == F)
 
