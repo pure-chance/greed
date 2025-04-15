@@ -1,5 +1,5 @@
 [package]
-name = "greed_rust"
+name = "greed"
 version = "0.1.0"
 edition = "2021"
 
@@ -17,4 +17,3 @@ csv = "1.3.0"
 memoize = "0.4.1"
 # debugging
 # anyhow = "1.0"
-
