@@ -6,15 +6,11 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-# math stuff
 num-bigint = "0.4.4"
 num-rational = "0.4"
 num-traits = "0.2.17"
-# csv stuff
 serde = "1.0.193"
 csv = "1.3.0"
-# optimization stuff
 memoize = "0.4.1"
 clap = "4.5.36"
-# debugging
-# anyhow = "1.0"
+indicatif = "0.17.11"

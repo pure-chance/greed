@@ -1,8 +1,8 @@
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
-use std::ops::{Add, Mul, Sub};
 
 use csv::Writer;
+use indicatif::ProgressBar;
 use memoize::memoize;
 use num_bigint::BigInt;
 use num_rational::Ratio;
@@ -73,13 +73,16 @@ impl GreedSolver {
 impl GreedSolver {
     // Solve terminal states
     fn solve_terminal_states(&mut self) {
+        let bar = ProgressBar::new((self.max as u64 + 1).pow(2));
         for turn in 0..=self.max {
             for next in 0..=self.max {
                 let state = State::new(turn, next, true);
                 let action = self.find_optimal_terminal_action(&state);
                 self.table.insert(state, action);
+                bar.inc(1);
             }
         }
+        bar.finish_with_message("Terminal states solved.");
     }
     /// Find the optimal terminal action for a given state.
     fn find_optimal_terminal_action(&self, state: &State) -> Action {
@@ -126,6 +129,7 @@ impl GreedSolver {
 impl GreedSolver {
     // Solve normal states
     fn solve_normal_states(&mut self) {
+        let bar = ProgressBar::new((self.max as u64 + 1).pow(2));
         for order in 0..=2 * self.max {
             for place in 0..=order.min(2 * self.max - order) {
                 // calculate the player and opponent score for this order and place
@@ -136,8 +140,10 @@ impl GreedSolver {
                 let state = State::new(turn, next, false);
                 let action = self.find_optimal_normal_action(&state);
                 self.table.insert(state, action);
+                bar.inc(1);
             }
         }
+        bar.finish_with_message("Normal states solved.");
     }
     /// Find the optimal normal action for a given state.
     fn find_optimal_normal_action(&mut self, state: &State) -> Action {
@@ -210,24 +216,20 @@ fn pmf(total: u16, n: u16, s: u16) -> f64 {
     if total == 0 {
         return 0.0;
     }
-    let mut valid_comb: BigInt = Zero::zero();
-    for k in 0..=(total - n) / s {
-        let current_comb: BigInt = combinations(n, k).mul(combinations(total - s * k - 1, n - 1));
+    let compositions: BigInt = (0..=(total - n) / s).fold(Zero::zero(), |acc: BigInt, k| {
+        let term = combinations(n, k) * combinations(total - s * k - 1, n - 1);
         if k % 2 == 0 {
-            valid_comb = valid_comb.add(current_comb);
+            acc + term
         } else {
-            valid_comb = valid_comb.sub(current_comb);
+            acc - term
         }
-    }
-    let mut total_comb: BigInt = s.into();
-    total_comb = total_comb.pow(n as u32);
-
-    let result: Ratio<BigInt> = Ratio::new(valid_comb, total_comb);
-    result.to_f64().unwrap()
+    });
+    let total_outcomes: BigInt = BigInt::from(s).pow(n as u32);
+    Ratio::new(compositions, total_outcomes).to_f64().unwrap()
 }
 
 fn combinations(n: u16, k: u16) -> BigInt {
     let cutoff: u16 = if k < n - k { n - k } else { k };
-    (cutoff + 1..=n).fold(One::one(), |acc: BigInt, x| acc.mul(x))
-        / (1..=n - cutoff).fold(One::one(), |acc: BigInt, x| acc.mul(x))
+    (cutoff + 1..=n).fold(One::one(), |acc: BigInt, x| acc * x)
+        / (1..=n - cutoff).fold(One::one(), |acc: BigInt, x| acc * x)
 }
