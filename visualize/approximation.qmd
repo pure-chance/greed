@@ -1,0 +1,36 @@
+---
+title: When to transition from exact to approximate pmf
+---
+
+```{r setup}
+library(tidyverse)
+```
+
+```{r}
+pmf <- read.csv("./greed_pmf_comparison_2.csv")
+```
+
+```{r}
+avg_pmf <- pmf %>%
+  group_by(n, s) %>%
+  summarize(avg_diff = mean(diff), .groups = "drop")
+```
+
+```{r}
+approximable_pmfs <- avg_pmf %>% filter(avg_diff < 0.005)
+```
+
+```{r}
+approximable_pmfs %>%
+  group_by(n) %>%
+  summarize(boundary_s = min(s))
+```
+
+```{r}
+approximable_pmfs %>% filter(n < 25) %>%
+ggplot(aes(x = n, y = s)) + geom_point()
+```
+
+```{r}
+approximable_pmfs %>% filter(s == 9) %>% select(n) %>% summarize(min = min(n))
+```

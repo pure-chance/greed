@@ -154,6 +154,7 @@ impl GreedSolver {
                 Ordering::Greater => 1.0,
             };
         }
+        println!("...");
         (dice_rolled..=self.sides * dice_rolled).fold(0.0, |acc, dice_total| {
             match (state.active + dice_total).cmp(&state.queued) {
                 Ordering::Greater if state.active + dice_total <= self.max => {
