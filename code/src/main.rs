@@ -2,8 +2,8 @@ use clap::{Arg, Command};
 use greed::GreedSolver;
 
 fn main() {
-    let matches = Command::new("dice-tool")
-        .about("Simulates dice rolls")
+    let matches = Command::new("greed")
+        .about("Optimizes a game of Greed")
         .arg(
             Arg::new("max")
                 .short('m')

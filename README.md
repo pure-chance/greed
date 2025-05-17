@@ -12,7 +12,7 @@ Play continues back and forth until one player decides to roll 0 dice, signaling
 
 ## Project Structure
 
-- `/src`: Contains the core algorithm and implementation:
+- `/code`: Contains the core algorithm and implementation:
 - `/report`: Documents the mathematical theory and algorithms used.
 - `/presentation`: Contains colloquium slides and presentation materials.
 - `/visualize`: Tools for visualizing the optimal strategy.
@@ -22,6 +22,7 @@ Play continues back and forth until one player decides to roll 0 dice, signaling
 ### Running the Solver
 
 ```sh
+cd code
 # generates a (mostly) human readable report
 cargo run --release -- --max 100 --sides 6 --format=stdout
 # generates csv file `visualize/greed_[max]_[sides].csv`
@@ -32,7 +33,7 @@ cargo run --release -- --max 100 --sides 6 --format=csv
 
 ```sh
 cd visualize
-Rscript heatmaps.R greed_100_6.csv
+Rscript heatmaps.R greed_100_6.csv # or whatever the path is
 ```
 
 ## Key Findings
