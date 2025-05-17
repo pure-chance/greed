@@ -11,10 +11,7 @@ use num_traits::{One, ToPrimitive, Zero};
 #[memoize]
 #[must_use]
 pub fn pmf(total: u16, n: u16, s: u16) -> f64 {
-    if total == 0 {
-        return 0.0;
-    }
-    if total > n * s {
+    if total < n || total > n * s {
         return 0.0;
     }
     let compositions: BigInt = (0..=(total - n) / s).fold(Zero::zero(), |acc: BigInt, k| {
