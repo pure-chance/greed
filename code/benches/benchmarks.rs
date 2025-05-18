@@ -1,7 +1,7 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
-use greed::{pmf, GreedSolver};
+use greed::GreedSolver;
 
-fn bench_solver(c: &mut Criterion) {
+fn solver(c: &mut Criterion) {
     let mut group = c.benchmark_group("solver");
     const BOARD_SIZES: &[u16] = &[5, 20, 100];
 
@@ -31,19 +31,8 @@ fn bench_solver(c: &mut Criterion) {
         });
     }
 
-    // Benchmark PMF calculation
-    group.bench_function("pmf_calculation", |b| {
-        b.iter(|| {
-            for dice in 1..=6 {
-                for total in dice..=(6 * dice) {
-                    black_box(pmf(black_box(total), black_box(dice), black_box(6)));
-                }
-            }
-        });
-    });
-
     group.finish();
 }
 
-criterion_group!(benches, bench_solver);
+criterion_group!(benches, solver);
 criterion_main!(benches);

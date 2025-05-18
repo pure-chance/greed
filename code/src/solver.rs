@@ -4,7 +4,7 @@ use csv::Writer;
 use rayon::prelude::*;
 use rustc_hash::{FxBuildHasher, FxHashMap};
 
-use crate::pmf::pmf;
+use crate::pmf::fft_convolve;
 
 /// A state of Greed.
 #[derive(Debug, Copy, Clone, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -78,6 +78,8 @@ pub struct GreedSolver {
     sides: u16,
     /// Table of state-action pairs
     table: FxHashMap<State, Action>,
+    /// PMF's
+    pmfs: Vec<Vec<f64>>,
 }
 
 impl GreedSolver {
@@ -88,7 +90,20 @@ impl GreedSolver {
             max,
             sides,
             table: FxHashMap::default(),
+            pmfs: Self::precompute_pmfs(max, sides),
         }
+    }
+    pub fn precompute_pmfs(max: u16, sides: u16) -> Vec<Vec<f64>> {
+        let max_n = (2 * max / (sides + 1) + 1).max(max + 1);
+
+        let mut pmfs: Vec<Vec<f64>> = Vec::with_capacity(max as usize + 1);
+        let dice_pmf = vec![1.0 / sides as f64; sides as usize];
+
+        pmfs.push(vec![1.0]);
+        for n in 1..=max_n {
+            pmfs.push(fft_convolve(&pmfs[(n - 1) as usize], &dice_pmf))
+        }
+        pmfs
     }
     /// Solve the game
     pub fn solve(&mut self) {
@@ -130,7 +145,7 @@ impl GreedSolver {
         }
 
         let mut optimal_action = Action::new(0, 0.0);
-        let mut dice_rolled = (state.queued - state.active) / self.sides; // Start at min non-zero rating.
+        let mut dice_rolled = (state.queued - state.active) / self.sides; // Start at min non-zero() rating.
 
         loop {
             let current_rating = self.calc_terminal_rating(state, dice_rolled);
@@ -157,9 +172,11 @@ impl GreedSolver {
         (dice_rolled..=self.sides * dice_rolled).fold(0.0, |acc, dice_total| {
             match (state.active + dice_total).cmp(&state.queued) {
                 Ordering::Greater if state.active + dice_total <= self.max => {
-                    acc + pmf(dice_total, dice_rolled, self.sides)
+                    acc + self.pmfs[dice_rolled as usize][(dice_total - dice_rolled) as usize]
                 }
-                Ordering::Equal => acc + 0.5 * pmf(dice_total, dice_rolled, self.sides),
+                Ordering::Equal => {
+                    acc + 0.5 * self.pmfs[dice_rolled as usize][(dice_total - dice_rolled) as usize]
+                }
                 _ => acc,
             }
         })
@@ -203,7 +220,7 @@ impl GreedSolver {
     ///
     /// This presupposes that the terminal states have already been solved, and that all ratings with a higher order have already been calculated. Will panic if this invariant is not met.
     fn find_optimal_normal_action(&self, state: State) -> Action {
-        let max_reasonable_n = 2 * (self.max - state.active) / (self.sides + 1) + 2; // +2 for safety of checking high enough
+        let max_reasonable_n = 2 * (self.max - state.active) / (self.sides + 1) + 1; // +1 for safety of() checking high enough
         let (optimal_roll, optimal_rating) = (0..=max_reasonable_n)
             .map(|dice_rolled| (dice_rolled, self.calc_normal_rating(state, dice_rolled)))
             .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
@@ -223,7 +240,8 @@ impl GreedSolver {
         }
         (dice_rolled..=self.sides * dice_rolled).fold(0.0, |acc, dice_total| {
             if state.active + dice_total < self.max {
-                let probability: f64 = pmf(dice_total, dice_rolled, self.sides);
+                let probability: f64 =
+                    self.pmfs[dice_rolled as usize][(dice_total - dice_rolled) as usize];
                 let state = State::new(state.queued, state.active + dice_total, false);
                 let rating: f64 = 1.0 - self.table.get(&state).unwrap().rating;
                 acc + probability * rating

@@ -1,34 +1,26 @@
-use memoize::memoize;
-use num_bigint::BigInt;
-use num_rational::Ratio;
-use num_traits::{One, ToPrimitive, Zero};
+use rustfft::{num_complex::Complex, FftPlanner};
 
-/// The pmf of the `total` for `n` i.i.d uniform random variables with `s` values
-///
-/// # Panics
-///
-/// Panics if the ratio between the # of rolls that yield the total and # of rolls possible cannot be represented with an `f64`.
-#[memoize]
+/// Convolve two real-valued PMFs using FFT
 #[must_use]
-pub fn pmf(total: u16, n: u16, s: u16) -> f64 {
-    if total < n || total > n * s {
-        return 0.0;
-    }
-    let compositions: BigInt = (0..=(total - n) / s).fold(Zero::zero(), |acc: BigInt, k| {
-        let term = combinations(n, k) * combinations(total - s * k - 1, n - 1);
-        if k % 2 == 0 {
-            acc + term
-        } else {
-            acc - term
-        }
-    });
-    let total_outcomes: BigInt = BigInt::from(s).pow(u32::from(n));
-    Ratio::new(compositions, total_outcomes).to_f64().unwrap()
-}
+pub fn fft_convolve(a: &[f64], b: &[f64]) -> Vec<f64> {
+    let size = (a.len() + b.len()).next_power_of_two();
+    let mut planner = FftPlanner::new();
+    let fft = planner.plan_fft_forward(size);
+    let ifft = planner.plan_fft_inverse(size);
 
-/// The number of combinations of `n` items taken `k` at a time (i.e. C(n, k))
-fn combinations(n: u16, k: u16) -> BigInt {
-    let cutoff: u16 = if k < n - k { n - k } else { k };
-    (cutoff + 1..=n).fold(One::one(), |acc: BigInt, x| acc * x)
-        / (1..=n - cutoff).fold(One::one(), |acc: BigInt, x| acc * x)
+    let mut fa: Vec<Complex<f64>> = a.iter().map(|&x| Complex::new(x, 0.0)).collect();
+    fa.resize(size, Complex::new(0.0, 0.0));
+    let mut fb: Vec<Complex<f64>> = b.iter().map(|&x| Complex::new(x, 0.0)).collect();
+    fb.resize(size, Complex::new(0.0, 0.0));
+
+    fft.process(&mut fa);
+    fft.process(&mut fb);
+
+    for (x, y) in fa.iter_mut().zip(fb.iter()) {
+        *x *= *y;
+    }
+
+    ifft.process(&mut fa);
+    fa.truncate(a.len() + b.len() - 1);
+    fa.iter().map(|x| (x.re / size as f64).max(0.0)).collect()
 }
