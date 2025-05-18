@@ -6,6 +6,28 @@ use rustc_hash::{FxBuildHasher, FxHashMap};
 
 use crate::pmf::fft_convolve;
 
+/// A configuration of Greed
+#[derive(Debug, Clone, Default)]
+pub struct Configuration {
+    /// Maximum score allowed.
+    max: u16,
+    /// The # of sides on each dice.
+    sides: u16,
+}
+
+impl Configuration {
+    #[must_use]
+    pub fn new(max: u16, sides: u16) -> Self {
+        Configuration { max, sides }
+    }
+    pub fn max(&self) -> u16 {
+        self.max
+    }
+    pub fn sides(&self) -> u16 {
+        self.sides
+    }
+}
+
 /// A state of Greed.
 #[derive(Debug, Copy, Clone, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct State {
@@ -72,12 +94,10 @@ impl Action {
 /// This pattern continues until we reach the minimum `turn + next` score. All normal states are now fully computed.
 #[derive(Debug, Clone, Default)]
 pub struct GreedSolver {
-    /// Maximum score allowed.
-    max: u16,
-    /// The # of sides on each dice.
-    sides: u16,
-    /// Table of state-action pairs
-    table: FxHashMap<State, Action>,
+    /// A configuration of Greed (max, sides)
+    configuration: Configuration,
+    /// The solvers policy (state-action pairs)
+    policy: Policy,
     /// PMF's
     pmfs: Vec<Vec<f64>>,
 }
@@ -87,9 +107,8 @@ impl GreedSolver {
     #[must_use]
     pub fn new(max: u16, sides: u16) -> Self {
         GreedSolver {
-            max,
-            sides,
             table: FxHashMap::default(),
+            configuration: Configuration::new(max, sides),
             pmfs: Self::precompute_pmfs(max, sides),
         }
     }
@@ -117,13 +136,19 @@ impl GreedSolver {
         // Solve all the normal states (in the correct order).
         self.solve_normal_states();
     }
+    pub fn max(&self) -> u16 {
+        self.configuration.max()
+    }
+    pub fn sides(&self) -> u16 {
+        self.configuration.sides
+    }
 }
 
 impl GreedSolver {
     /// Solve terminal states
     pub fn solve_terminal_states(&mut self) {
-        let states: Vec<_> = (0..=self.max)
-            .flat_map(|turn| (0..=self.max).map(move |next| State::new(turn, next, true)))
+        let states: Vec<_> = (0..=self.max())
+            .flat_map(|turn| (0..=self.max()).map(move |next| State::new(turn, next, true)))
             .collect();
 
         let actions: Vec<_> = states
@@ -169,7 +194,7 @@ impl GreedSolver {
                 Ordering::Greater => 1.0,
             };
         }
-        (dice_rolled..=self.sides * dice_rolled).fold(0.0, |acc, dice_total| {
+        (dice_rolled..=self.sides() * dice_rolled).fold(0.0, |acc, dice_total| {
             match (state.active + dice_total).cmp(&state.queued) {
                 Ordering::Greater if state.active + dice_total <= self.max => {
                     acc + self.pmfs[dice_rolled as usize][(dice_total - dice_rolled) as usize]
@@ -191,16 +216,16 @@ impl GreedSolver {
     /// This presupposes that the terminal states have already been solved. Will panic if this invariant is not met.
     pub fn solve_normal_states(&mut self) {
         // Process each order sequentially (constraint of the dynamic programming).
-        for order in (0..=2 * self.max).rev() {
+        for order in (0..=2 * self.max()).rev() {
             // For each order, process places in parallel.
-            let states_actions: Vec<(State, Action)> = (0..=order.min(2 * self.max - order))
+            let states_actions: Vec<(State, Action)> = (0..=order.min(2 * self.max() - order))
                 .into_par_iter() // Parallelize only within each order.
                 .map(|place| {
                     // Calculate the player and opponent score for this order and place.
-                    let (turn, next) = if order < self.max {
+                    let (turn, next) = if order < self.max() {
                         (order - place, place)
                     } else {
-                        (self.max - place, (order - self.max) + place)
+                        (self.max() - place, (order - self.max()) + place)
                     };
                     let state = State::new(turn, next, false);
                     let action = self.find_optimal_normal_action(state);
