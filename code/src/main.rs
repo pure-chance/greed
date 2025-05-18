@@ -1,17 +1,50 @@
 use clap::{Arg, Command};
-use greed::GreedSolver;
+use greed::{Greed, GreedSolver};
 
 fn main() {
-    let matches = Command::new("greed")
-        .about("Optimizes a game of Greed")
+    let play = Command::new("play")
+        .about("starts a game of Greed")
         .arg(
             Arg::new("max")
                 .short('m')
                 .long("max")
                 .value_name("MAX")
                 .help("Maximum score")
-                .required(true)
-                .value_parser(clap::value_parser!(u16)),
+                .value_parser(clap::value_parser!(u16))
+                .default_value("100"),
+        )
+        .arg(
+            Arg::new("sides")
+                .short('s')
+                .long("sides")
+                .value_name("SIDES")
+                .help("Number of sides on the die")
+                .value_parser(clap::value_parser!(u16))
+                .default_value("6"),
+        )
+        .arg(
+            Arg::new("p1")
+                .value_name("P1")
+                .help("Player 1")
+                .default_value("Alice"),
+        )
+        .arg(
+            Arg::new("p2")
+                .value_name("P2")
+                .help("Player 2")
+                .default_value("Bliar"),
+        );
+
+    let solve = Command::new("solve")
+        .about("Optimizes (solves) a game of Greed")
+        .arg(
+            Arg::new("max")
+                .short('m')
+                .long("max")
+                .value_name("MAX")
+                .help("Maximum score")
+                .value_parser(clap::value_parser!(u16))
+                .default_value("100"),
         )
         .arg(
             Arg::new("sides")
@@ -19,8 +52,8 @@ fn main() {
                 .long("sides")
                 .value_name("SIDES")
                 .help("Number of sides on the dice")
-                .required(true)
-                .value_parser(clap::value_parser!(u16)),
+                .value_parser(clap::value_parser!(u16))
+                .default_value("6"),
         )
         .arg(
             Arg::new("format")
@@ -29,20 +62,40 @@ fn main() {
                 .value_parser(["stdout", "csv"])
                 .default_value("stdout")
                 .help("Output format: stdout or csv"),
-        )
-        .get_matches();
+        );
 
-    let max = *matches.get_one::<u16>("max").unwrap();
-    let sides = *matches.get_one::<u16>("sides").unwrap();
+    let cli = Command::new("greed").subcommand(play).subcommand(solve);
 
-    let mut greed_solver = GreedSolver::new(max, sides);
-    greed_solver.solve();
+    let args = cli.get_matches();
 
-    match matches.get_one::<String>("format").unwrap().as_str() {
-        "stdout" => greed_solver.display(),
-        "csv" => greed_solver
-            .csv(&format!("visualize/greed_{}_{}.csv", max, sides))
-            .unwrap(),
-        _ => unreachable!(),
+    match args.subcommand() {
+        Some(("play", args)) => {
+            let max = *args.get_one::<u16>("max").unwrap();
+            let sides = *args.get_one::<u16>("sides").unwrap();
+            let p1 = args.get_one::<String>("p1").unwrap().as_str();
+            let p2 = args.get_one::<String>("p2").unwrap().as_str();
+
+            Greed::play(max, sides, (p1, p2));
+        }
+        Some(("solve", args)) => {
+            let max = *args.get_one::<u16>("max").unwrap();
+            let sides = *args.get_one::<u16>("sides").unwrap();
+            let format = args.get_one::<String>("format").unwrap().as_str();
+
+            let mut greed_solver = GreedSolver::new(max, sides);
+            greed_solver.solve();
+
+            match format {
+                "stdout" => greed_solver.display(),
+                "csv" => greed_solver
+                    .csv(&format!("visualize/greed_{}_{}.csv", max, sides))
+                    .unwrap(),
+                _ => unreachable!(),
+            }
+        }
+        None => {}
+        Some(_) => {
+            unreachable!("Clap will short-circuit with `error: unrecognized subcommand: [subcommand]` if a subcommand is not recognized")
+        }
     }
 }

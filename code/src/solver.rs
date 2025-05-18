@@ -3,99 +3,58 @@ use std::cmp::Ordering;
 use csv::Writer;
 use rayon::prelude::*;
 
+use crate::greed::{Configuration, State};
 use crate::pmf::fft_convolve;
-
-/// A configuration of Greed
-#[derive(Debug, Clone, Default)]
-pub struct Configuration {
-    /// Maximum score allowed.
-    max: u16,
-    /// The # of sides on each dice.
-    sides: u16,
-}
-
-impl Configuration {
-    #[must_use]
-    pub fn new(max: u16, sides: u16) -> Self {
-        Configuration { max, sides }
-    }
-    pub fn max(&self) -> u16 {
-        self.max
-    }
-    pub fn sides(&self) -> u16 {
-        self.sides
-    }
-}
-
-/// A state of Greed.
-#[derive(Debug, Copy, Clone, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct State {
-    /// The score of the player whose turn it is.
-    active: u16,
-    /// The score of the player whose turn is up next.
-    queued: u16,
-    /// Whether this is the last turn of the game.
-    last: bool,
-}
-
-impl State {
-    #[must_use]
-    pub fn new(active: u16, queued: u16, last: bool) -> Self {
-        State {
-            active,
-            queued,
-            last,
-        }
-    }
-}
 
 /// An action to perform, with its corresponding rating.
 #[derive(Debug, Copy, Clone, Default)]
-pub struct Action {
+pub struct OptimalAction {
     /// Dice to roll
     n: u16,
     /// Rating given a roll of `n` dice.
     payoff: f64,
 }
 
-impl Action {
+impl OptimalAction {
     #[must_use]
     pub fn new(n: u16, rating: f64) -> Self {
-        Action { n, payoff: rating }
+        OptimalAction { n, payoff: rating }
     }
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct Policy {
-    normal: Vec<Vec<Action>>,
-    terminal: Vec<Vec<Action>>,
+    terminal: Vec<Vec<OptimalAction>>,
+    normal: Vec<Vec<OptimalAction>>,
 }
 
 impl Policy {
+    #[must_use]
     pub fn new(max: u16) -> Self {
         let size = usize::from(max + 1);
-        let terminal = vec![vec![Action::default(); size]; size];
-        let normal = vec![vec![Action::default(); size]; size];
+        let terminal = vec![vec![OptimalAction::default(); size]; size];
+        let normal = vec![vec![OptimalAction::default(); size]; size];
         Self { terminal, normal }
     }
-    pub fn get(&self, state: &State) -> Action {
-        if state.last {
-            self.terminal[state.active as usize][state.queued as usize]
+    #[must_use]
+    pub fn get(&self, state: &State) -> OptimalAction {
+        if state.last() {
+            self.terminal[state.active() as usize][state.queued() as usize]
         } else {
-            self.normal[state.active as usize][state.queued as usize]
+            self.normal[state.active() as usize][state.queued() as usize]
         }
     }
-    pub fn set(&mut self, state: &State, action: Action) {
-        if state.last {
-            self.terminal[state.active as usize][state.queued as usize] = action;
+    pub fn set(&mut self, state: &State, action: OptimalAction) {
+        if state.last() {
+            self.terminal[state.active() as usize][state.queued() as usize] = action;
         } else {
-            self.normal[state.active as usize][state.queued as usize] = action;
+            self.normal[state.active() as usize][state.queued() as usize] = action;
         }
     }
 }
 
 impl Policy {
-    pub fn iter(&self) -> impl Iterator<Item = (State, Action)> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item = (State, OptimalAction)> + '_ {
         let terminal_iter = self.terminal.iter().enumerate().flat_map(|(i, row)| {
             row.iter()
                 .enumerate()
@@ -113,7 +72,7 @@ impl Policy {
 }
 
 impl IntoIterator for Policy {
-    type Item = (State, Action);
+    type Item = (State, OptimalAction);
     type IntoIter = Box<dyn Iterator<Item = Self::Item>>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -179,15 +138,16 @@ impl GreedSolver {
             pmfs: Self::precompute_pmfs(max, sides),
         }
     }
+    #[must_use]
     pub fn precompute_pmfs(max: u16, sides: u16) -> Vec<Vec<f64>> {
         let max_n = (2 * max / (sides + 1) + 1).max(max + 1);
 
         let mut pmfs: Vec<Vec<f64>> = Vec::with_capacity(max as usize + 1);
-        let dice_pmf = vec![1.0 / sides as f64; sides as usize];
+        let dice_pmf = vec![1.0 / f64::from(sides); sides as usize];
 
         pmfs.push(vec![1.0]);
         for n in 1..=max_n {
-            pmfs.push(fft_convolve(&pmfs[(n - 1) as usize], &dice_pmf))
+            pmfs.push(fft_convolve(&pmfs[(n - 1) as usize], &dice_pmf));
         }
         pmfs
     }
@@ -198,11 +158,13 @@ impl GreedSolver {
         // Solve all the normal states (in the correct order).
         self.solve_normal_states();
     }
+    #[must_use]
     pub fn max(&self) -> u16 {
         self.configuration.max()
     }
+    #[must_use]
     pub fn sides(&self) -> u16 {
-        self.configuration.sides
+        self.configuration.sides()
     }
 }
 
@@ -225,14 +187,14 @@ impl GreedSolver {
     /// Find the optimal terminal action for a given state
     ///
     /// Because the optimal action is defined as having the highest probability of having `total` fall between `queued` and `max`, the distribution of `rating` with respect to `n` is unimodal. This means that when the active player is behind we can search from `n = min_non-zero_rating` up until the rating starts decreasing, and then stop. This is guaranteed to have found the optimal action.
-    fn find_optimal_terminal_action(&self, state: State) -> Action {
-        if state.active > state.queued {
+    fn find_optimal_terminal_action(&self, state: State) -> OptimalAction {
+        if state.active() > state.queued() {
             // If already ahead, doing nothing wins 100% of the time.
-            return Action { n: 0, payoff: 1.0 };
+            return OptimalAction { n: 0, payoff: 1.0 };
         }
 
-        let mut optimal_action = Action::new(0, -1.0);
-        let mut dice_rolled = (state.queued - state.active) / self.sides(); // Start at min non-zero rating.
+        let mut optimal_action = OptimalAction::new(0, -1.0);
+        let mut dice_rolled = (state.queued() - state.active()) / self.sides(); // Start at min non-zero rating.
 
         loop {
             let current_payoff = self.calc_terminal_rating(state, dice_rolled);
@@ -240,7 +202,7 @@ impl GreedSolver {
                 break;
             }
             if current_payoff > optimal_action.payoff {
-                optimal_action = Action::new(dice_rolled, current_payoff);
+                optimal_action = OptimalAction::new(dice_rolled, current_payoff);
             }
             dice_rolled += 1;
         }
@@ -250,7 +212,7 @@ impl GreedSolver {
     /// Calculate the rating when in state `state` and rolling `dice_rolled` # of dice
     fn calc_terminal_rating(&self, state: State, dice_rolled: u16) -> f64 {
         if dice_rolled == 0 {
-            return match state.active.cmp(&state.queued) {
+            return match state.active().cmp(&state.queued()) {
                 Ordering::Less => -1.0,
                 Ordering::Equal => 0.0,
                 Ordering::Greater => 1.0,
@@ -259,8 +221,8 @@ impl GreedSolver {
 
         (dice_rolled..=self.sides() * dice_rolled).fold(0.0, |acc, dice_total| {
             let p_for_total = self.pmfs[dice_rolled as usize][(dice_total - dice_rolled) as usize];
-            match (state.active + dice_total).cmp(&state.queued) {
-                Ordering::Greater if state.active + dice_total <= self.max() => acc + p_for_total,
+            match (state.active() + dice_total).cmp(&state.queued()) {
+                Ordering::Greater if state.active() + dice_total <= self.max() => acc + p_for_total,
                 Ordering::Less | Ordering::Greater => acc - p_for_total, // lower score or bust
                 Ordering::Equal => acc,                                  // tie
             }
@@ -278,7 +240,8 @@ impl GreedSolver {
         // Process each order sequentially (constraint of the dynamic programming).
         for order in (0..=2 * self.max()).rev() {
             // For each order, process places in parallel.
-            let states_actions: Vec<(State, Action)> = (0..=order.min(2 * self.max() - order))
+            let states_actions: Vec<(State, OptimalAction)> = (0..=order
+                .min(2 * self.max() - order))
                 .into_par_iter() // Parallelize only within each order.
                 .map(|place| {
                     // Calculate the player and opponent score for this order and place.
@@ -304,13 +267,13 @@ impl GreedSolver {
     /// # Panics
     ///
     /// This presupposes that the terminal states have already been solved, and that all ratings with a higher order have already been calculated. Will panic if this invariant is not met.
-    fn find_optimal_normal_action(&self, state: State) -> Action {
-        let max_reasonable_n = 2 * (self.max() - state.active) / (self.sides() + 1) + 3; // +1 for safety of checking high enough
+    fn find_optimal_normal_action(&self, state: State) -> OptimalAction {
+        let max_reasonable_n = 2 * (self.max() - state.active()) / (self.sides() + 1) + 3; // +1 for safety of checking high enough
         let (optimal_roll, optimal_rating) = (0..=max_reasonable_n)
             .map(|dice_rolled| (dice_rolled, self.calc_normal_rating(state, dice_rolled)))
             .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
             .unwrap();
-        Action::new(optimal_roll, optimal_rating)
+        OptimalAction::new(optimal_roll, optimal_rating)
     }
     /// Calculate the rating when in state `state` and rolling `dice_rolled` # of dice
     ///
@@ -320,14 +283,14 @@ impl GreedSolver {
     #[must_use]
     pub fn calc_normal_rating(&self, state: State, dice_rolled: u16) -> f64 {
         if dice_rolled == 0 {
-            let terminal_state = State::new(state.queued, state.active, true);
+            let terminal_state = State::new(state.queued(), state.active(), true);
             return -self.policy.get(&terminal_state).payoff;
         }
         (dice_rolled..=self.sides() * dice_rolled).fold(0.0, |acc, dice_total| {
-            if state.active + dice_total < self.max() {
+            if state.active() + dice_total < self.max() {
                 let probability: f64 =
                     self.pmfs[dice_rolled as usize][(dice_total - dice_rolled) as usize];
-                let state = State::new(state.queued, state.active + dice_total, false);
+                let state = State::new(state.queued(), state.active() + dice_total, false);
                 let rating: f64 = -self.policy.get(&state).payoff;
                 acc + probability * rating
             } else {
@@ -350,9 +313,9 @@ impl GreedSolver {
         writer.serialize(("active", "queued", "last", "n", "rating"))?;
         for (state, action) in self.policy.clone() {
             writer.serialize((
-                state.active,
-                state.queued,
-                state.last,
+                state.active(),
+                state.queued(),
+                state.last(),
                 action.n,
                 action.payoff,
             ))?;
@@ -363,16 +326,19 @@ impl GreedSolver {
     /// Write the solver's policy to a human-readable format
     pub fn display(&self) {
         let mut all_states: Vec<_> = self.policy.iter().collect();
-        all_states.sort_by_key(|(state, _)| (state.last, state.active, state.queued));
+        all_states.sort_by_key(|(state, _)| (state.last(), state.active(), state.queued()));
 
         let (terminal_states, normal_states): (Vec<_>, Vec<_>) =
-            all_states.into_iter().partition(|(state, _)| state.last);
+            all_states.into_iter().partition(|(state, _)| state.last());
 
         // terminal states
         for (state, action) in terminal_states {
             println!(
                 "({}, {}, terminal) => (dice: #{}, rating: {})",
-                state.active, state.queued, action.n, action.payoff
+                state.active(),
+                state.queued(),
+                action.n,
+                action.payoff
             );
         }
         println!();
@@ -380,7 +346,10 @@ impl GreedSolver {
         for (state, action) in normal_states {
             println!(
                 "({}, {}, normal) => (dice: #{}, rating: {})",
-                state.active, state.queued, action.n, action.payoff
+                state.active(),
+                state.queued(),
+                action.n,
+                action.payoff
             );
         }
     }
