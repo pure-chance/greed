@@ -2,7 +2,6 @@ use std::cmp::Ordering;
 
 use csv::Writer;
 use rayon::prelude::*;
-use rustc_hash::{FxBuildHasher, FxHashMap};
 
 use crate::pmf::fft_convolve;
 
@@ -66,6 +65,74 @@ impl Action {
     }
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct Policy {
+    normal: Vec<Vec<Action>>,
+    terminal: Vec<Vec<Action>>,
+}
+
+impl Policy {
+    pub fn new(max: u16) -> Self {
+        let size = usize::from(max + 1);
+        let terminal = vec![vec![Action::default(); size]; size];
+        let normal = vec![vec![Action::default(); size]; size];
+        Self { terminal, normal }
+    }
+    pub fn get(&self, state: &State) -> Action {
+        if state.last {
+            self.terminal[state.active as usize][state.queued as usize]
+        } else {
+            self.normal[state.active as usize][state.queued as usize]
+        }
+    }
+    pub fn set(&mut self, state: &State, action: Action) {
+        if state.last {
+            self.terminal[state.active as usize][state.queued as usize] = action;
+        } else {
+            self.normal[state.active as usize][state.queued as usize] = action;
+        }
+    }
+}
+
+impl Policy {
+    pub fn iter(&self) -> impl Iterator<Item = (State, Action)> + '_ {
+        let terminal_iter = self.terminal.iter().enumerate().flat_map(|(i, row)| {
+            row.iter()
+                .enumerate()
+                .map(move |(j, &action)| (State::new(i as u16, j as u16, true), action))
+        });
+
+        let normal_iter = self.normal.iter().enumerate().flat_map(|(i, row)| {
+            row.iter()
+                .enumerate()
+                .map(move |(j, &action)| (State::new(i as u16, j as u16, false), action))
+        });
+
+        terminal_iter.chain(normal_iter)
+    }
+}
+
+impl IntoIterator for Policy {
+    type Item = (State, Action);
+    type IntoIter = Box<dyn Iterator<Item = Self::Item>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        let terminal_iter = self.terminal.into_iter().enumerate().flat_map(|(i, row)| {
+            row.into_iter()
+                .enumerate()
+                .map(move |(j, action)| (State::new(i as u16, j as u16, true), action))
+        });
+
+        let normal_iter = self.normal.into_iter().enumerate().flat_map(|(i, row)| {
+            row.into_iter()
+                .enumerate()
+                .map(move |(j, action)| (State::new(i as u16, j as u16, false), action))
+        });
+
+        Box::new(terminal_iter.chain(normal_iter))
+    }
+}
+
 /// A solver for Greed
 ///
 /// A game of Greed is a two-player dice game where players take turns rolling dice and accumulating points.
@@ -107,8 +174,8 @@ impl GreedSolver {
     #[must_use]
     pub fn new(max: u16, sides: u16) -> Self {
         GreedSolver {
-            table: FxHashMap::default(),
             configuration: Configuration::new(max, sides),
+            policy: Policy::new(max),
             pmfs: Self::precompute_pmfs(max, sides),
         }
     }
@@ -126,11 +193,6 @@ impl GreedSolver {
     }
     /// Solve the game
     pub fn solve(&mut self) {
-        // Reserve capacity for all possible states upfront
-        self.table = FxHashMap::with_capacity_and_hasher(
-            (self.max as usize + 1) * (self.max as usize + 1) * 2,
-            FxBuildHasher,
-        );
         // Solve all the terminal states (this must be done first).
         self.solve_terminal_states();
         // Solve all the normal states (in the correct order).
@@ -157,7 +219,7 @@ impl GreedSolver {
             .collect();
 
         for (state, action) in actions {
-            self.table.insert(state, action);
+            self.policy.set(&state, action);
         }
     }
     /// Find the optimal terminal action for a given state
@@ -170,7 +232,7 @@ impl GreedSolver {
         }
 
         let mut optimal_action = Action::new(0, 0.0);
-        let mut dice_rolled = (state.queued - state.active) / self.sides; // Start at min non-zero() rating.
+        let mut dice_rolled = (state.queued - state.active) / self.sides(); // Start at min non-zero() rating.
 
         loop {
             let current_rating = self.calc_terminal_rating(state, dice_rolled);
@@ -196,7 +258,7 @@ impl GreedSolver {
         }
         (dice_rolled..=self.sides() * dice_rolled).fold(0.0, |acc, dice_total| {
             match (state.active + dice_total).cmp(&state.queued) {
-                Ordering::Greater if state.active + dice_total <= self.max => {
+                Ordering::Greater if state.active + dice_total <= self.max() => {
                     acc + self.pmfs[dice_rolled as usize][(dice_total - dice_rolled) as usize]
                 }
                 Ordering::Equal => {
@@ -233,9 +295,9 @@ impl GreedSolver {
                 })
                 .collect();
 
-            // Insert the results for this order into the table.
+            // Insert the results for this order into the policy.
             for (state, action) in states_actions {
-                self.table.insert(state, action);
+                self.policy.set(&state, action);
             }
         }
     }
@@ -245,7 +307,7 @@ impl GreedSolver {
     ///
     /// This presupposes that the terminal states have already been solved, and that all ratings with a higher order have already been calculated. Will panic if this invariant is not met.
     fn find_optimal_normal_action(&self, state: State) -> Action {
-        let max_reasonable_n = 2 * (self.max - state.active) / (self.sides + 1) + 1; // +1 for safety of() checking high enough
+        let max_reasonable_n = 2 * (self.max() - state.active) / (self.sides() + 1) + 1; // +1 for safety of() checking high enough
         let (optimal_roll, optimal_rating) = (0..=max_reasonable_n)
             .map(|dice_rolled| (dice_rolled, self.calc_normal_rating(state, dice_rolled)))
             .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
@@ -261,14 +323,14 @@ impl GreedSolver {
     pub fn calc_normal_rating(&self, state: State, dice_rolled: u16) -> f64 {
         if dice_rolled == 0 {
             let terminal_state = State::new(state.queued, state.active, true);
-            return 1.0 - self.table.get(&terminal_state).unwrap().rating;
+            return 1.0 - self.policy.get(&terminal_state).rating;
         }
-        (dice_rolled..=self.sides * dice_rolled).fold(0.0, |acc, dice_total| {
-            if state.active + dice_total < self.max {
+        (dice_rolled..=self.sides() * dice_rolled).fold(0.0, |acc, dice_total| {
+            if state.active + dice_total < self.max() {
                 let probability: f64 =
                     self.pmfs[dice_rolled as usize][(dice_total - dice_rolled) as usize];
                 let state = State::new(state.queued, state.active + dice_total, false);
-                let rating: f64 = 1.0 - self.table.get(&state).unwrap().rating;
+                let rating: f64 = 1.0 - self.policy.get(&state).rating;
                 acc + probability * rating
             } else {
                 acc
@@ -278,7 +340,7 @@ impl GreedSolver {
 }
 
 impl GreedSolver {
-    /// Write the solver's table to a CSV file
+    /// Write the solver's policy to a CSV file
     ///
     /// # Errors
     ///
@@ -288,7 +350,7 @@ impl GreedSolver {
 
         // Write headers
         writer.serialize(("active", "queued", "last", "n", "rating"))?;
-        for (state, action) in self.table.clone() {
+        for (state, action) in self.policy.clone() {
             writer.serialize((
                 state.active,
                 state.queued,
@@ -300,15 +362,13 @@ impl GreedSolver {
         writer.flush()?;
         Ok(())
     }
-    /// Write the solver's table to a human-readable format
+    /// Write the solver's policy to a human-readable format
     pub fn display(&self) {
-        let mut terminal_states: Vec<_> =
-            self.table.iter().filter(|(state, _)| state.last).collect();
-        terminal_states.sort_by_key(|(state, _)| (state.active, state.queued));
+        let mut all_states: Vec<_> = self.policy.iter().collect();
+        all_states.sort_by_key(|(state, _)| (state.last, state.active, state.queued));
 
-        let mut normal_states: Vec<_> =
-            self.table.iter().filter(|(state, _)| !state.last).collect();
-        normal_states.sort_by_key(|(state, _)| (state.active, state.queued));
+        let (terminal_states, normal_states): (Vec<_>, Vec<_>) =
+            all_states.into_iter().partition(|(state, _)| state.last);
 
         // terminal states
         for (state, action) in terminal_states {
