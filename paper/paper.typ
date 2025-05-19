@@ -1,331 +1,269 @@
 // preamble ====================================================================
 
-#import "@preview/equals-template:0.2.0" as eq
-#import eq.ctheorems: *
-#show: eq.template(
-  title: [A Guide to Optimization and Optimal Play in Greed],
+#import "template/lib.typ": paper, theorion
+#import theorion: *
+
+#show: paper.with(
+  title: [A Policy Optimization of Greed],
   authors: ("Chance Addis",),
   abstract: [
-    The game of Greed is a two-player, probabilistic zero-sum game. It involves rolling dice and accumulating scores, with the goal of reaching the closest score to $M$ without going over. This analysis examines Greed from the perspective of game theory to determine the optimal strategy at any state, using the framework of markov decision processes and dynamic programming.
-  ]
+    The game of Greed is a stochastic, zero-sum game that tests a player's risk-taking, similarly to blackjack. We analyze _Greed_ through the lens of game theory by modeling it as a Markov Decision Process (MDP). This framework allows us to compute an optimal policy that maps each game state to the action that maximizes a player’s expected chance of winning. In addition to presenting the theoretical formulation, we explore efficient algorithms for computing this policy. By leveraging dynamic programming, state pruning, and compact policy representations, we substantially reduce computational overhead and enable fast, scalable analysis across large state spaces.
+  ],
+  references: bibliography("references.yml", title: "References", full: true)
 )
 
 // document ====================================================================
 
-= Introduction to Greed <introduction-to-greed>
+= Introduction <intro>
 
-== What is Greed? <what-is-greed>
+Games of chance and choice have long fascinated both players and theorists. From the strategic depth of poker to the probabilistic tension of blackjack, such games offer fertile ground for mathematical and algorithmic analysis. In this work, we turn our attention to Greed—a deceptively simple dice game with rich strategic structure.
 
-Greed is a game that could be described as "kinda like blackjack but with dice". Each player starts with a score of 0, which we'll label player score $s_p = 0$ and opponent score $s_o = 0$. The game also has some max score $M$ and, of course, each dice has $s$ sides. One player will start. They may choose any natural number $n in NN_0$ (including zero) of dice to roll. Once they roll, they will then add the sum of all the dice together and add that to their score. Then the opponent will choose to roll some $n$ number of dice and repeat, until one of two terminal states is reached.
+Greed blends elements of push-your-luck decision-making and competitive scoring. At every step, players must weigh their chances, choosing how much they are willing to risk a bust, or worse, being overtaken in the last round.
 
-In the first option, a player's score goes over $M$, i.e. and they go bust. In this case, they lose, so we'll say that their rating---the heuristic measure that we use to measure how good a position is---is $0$, and thus their opponents rating is $1$.
+In this paper, we formalize Greed as a Markov Decision Process (MDP) and compute its optimal policy (strategy) using dynamic programming. We begin by precisely stating the rules of the game, then model it as an MDP by defining its states, actions, and transitions. Next, we develop an efficient function for computing the probability mass function (PMF) of dice sums, a core component of the game. With this foundation, we compute the optimal policy and introduce performance optimizations to handle the game’s large state space. Finally, we analyze the resulting strategy and discuss implications and extensions.
 
-In the second option, a player can choose to roll $0$ dice. This will initiate the last turn. The other player will then have one more chance to roll. The winner is the player who has the higher score that is not over $M$. In the case of a tie, the rating is $1/2$ for each player.
+= Rules <rules>
 
-So for now, rating is defined $
-  "rating" = cases(
-    1 & "if win" \
-    1 / 2 & "if tie" \
-    1 & "if lose"
+In order to play Greed, first the players must agree on a ruleset.
+
+#definition(title: "Ruleset")[
+  A _ruleset_ of Greed is a pair $(M, s)$ where:
+    - $M in NN^+$ is the _maximum score_, and
+    - $s in NN^+$ is the _number of sides per die_.
+]
+
+With the ruleset defined, the game can begin.
+
+#definition(title: "Greed")[
+  Let the ruleset for this game be $(M, s)$.
+
+  The game is played between two players, *Alice* and *Bliar*. Each player begins with an initial score of $0$. Let $a, b in NN_0$ denote the scores of Alice and Bliar, respectively.
+
+  A starting player is chosen, typically by having both players roll a die and selecting the player with the higher result (re-rolling in case of a tie).
+
+  On a player’s turn (e.g., Alice’s), they choose a number $n in NN_0$ of $s$-sided dice to roll:
+
+  - If $n > 0$, then $n$ dice are rolled, and the resulting sum is added to the player’s score. If the score exceeds $M$, the player _busts_ and immediately loses.
+  - If $n = 0$, the player _stands_, triggering the _final round_: the opponent (Bliar) takes exactly one final turn under the same rules (choosing any $n in NN_0$).
+
+  The game ends when a player busts or when both players have stood. The result is determined as follows:
+  - If one player busts, the other wins.
+  - If both players stand, the winner is the player with the higher score.
+  - If both players have equal scores, the game is a tie.
+
+  The outcome can be represented as a zero-sum outcome function $O: {"Alice", "Bliar"} -> {-1, 0, 1}$, given by:
+
+  #table(
+    columns: 3,
+    table.header[][Alice’s Payoff][Bliar’s Payoff],
+    [Alice wins], [$+1$], [$-1$],
+    [Bliar wins], [$-1$], [$+1$],
+    [Tie], [$0$], [$0$],
   )
-$ For clarity, all examples will use a game environment where $M = 10$ and $s = 3$, but our analysis will extend to any $s in NN_0, M in NN_0$. And notably, the classic game of greed has $M = 100, s = 6$.
+]
 
-== Why <why>
+= Mathematical Framework <framework>
 
-At this point, you may be asking why investigate optimal play in a completely unknown game that was most likely made up my Reed CS faculty?
+#definition(title: "State")[
+  A _state_ $S$ of Greed is defined by the 4-tuple ($a$, $b$, $t$, $l$), where $a <= M$ is Alice's score, $b <= M$ is Bliar's score, $t in {"Alice", "Bliar"}$ indicates who's turn it is, and $l in {"true", "false"}$ is a boolean that indicates whether the game is in the final round.
+]
 
-I could explain that the optimization of probabilistic processes has relevance across various applications and industries, including finance, operations research, and engineering. Decision-making in uncertain environments is a common challenge, and optimizing strategies based on probabilistic models can lead to more informed and effective outcomes.
+For the purposes of computing optimal moves, the 3-tuple ($a$, $q$, $l$) is equivalent to the 4-tuple ($a$, $b$, $t$, $l$). The difference between the two is that the 3-tuple does not include the turn indicator $t$, which is not relevant for computing optimal moves. $a$ is just the score of the player whose turn it is, and $q$ is just the score of the player whose turn is up next. Therefore from now on, we will use this 3-tuple to represent the state, indicating which player's turn it is.
 
-But come on. You didn't come to this paper to hear about the applications of game theory, and I didn't write this paper to talk about it. I wrote this paper because
+#example[
+  Suppose Alice is up, and has a score of $85$, Bliar is up next, with a score of $70$, and it is not the final round. Then the state is $(85, 70, "false")$. This is equivalent to the 4-tuple $(85, 70, "Alice", "false")$.
+]
 
-+ I really like this problem. The idea of optimizing games is a exciting and challenging problem, and greed is just the kind of bit-sized game that allows for interesting problem-solving without becoming a behemoth (though I'd argue that it kinda is. The amount of rabbit holes that I've went down for this mini-thesis is insane.) and
+In addition to a state, it's also necessary to model the action space $A$ of Greed.
 
-+ My original algorithm lost to a basic if-else chain, and I'm filled with overwhelming spite. So much spite that I've spent the last 2 years thinking about it, only to spend #emph[this much] time optimizing it (given heuristic of rating / how states relate to each other - we'll get to it)
+#definition(title: "Action")[
+  An _action_ is a move that a player can make in a given state. This action is simply some $n$ number of dice to roll. $n = 0$ corresponds to _standing_ and $n >= 1$ corresponds to _rolling_.
+]
 
-= Mathematical Framework <mathematical-framework>
+Lastly, we define a transition function, which models the probability of transitioning from one state to another.
 
-Before beginning any calculations, it is necessary to first setup the problem space and how it will be conceptualized mathematically. By the nature of it's structure---its a markov process---Greed is well-split into two kinds of states; terminal states, which denote the last turn of the game, and normal turns, representing all other states.
+#definition(title: "Transition Function")[
+  The _transition function_ for greed is defined as $f: S times A -> [0, 1]$, mapping a state $s in S$ and action $a in A$ to the probability of transitioning from one state to another, given $s, a$.
 
-Both normal and terminal states can be thought of as 2 by 2 boards with dimensions $M + 1$ by $M + 1$, representing all possible states for player and opponent. Notably, the x-axis designates the player presently up to roll, while the y-axis designates the player who has just rolled. So a state of $(5, 8)$ could mean you have $5$, and the opponent has $8$, or vise versa, depending on whose turn it is. This might seem like an unintuitive framework, but it well-suits this game because of how it alternates back and forth between players. Thus it avoids redundancy, because as we'll see later, rating is complementary.
+  For states $s = (a, q, l)$ and $s' = (a', q', l')$ in $S$, and action $a in A$, the transition probability $f(s, s', a)$ is $
+     cases(
+       1.0 &"if" s' = (q, a, "T") and a = 0 \
+       bold(p)_n (a' - a) &"if " s' = (q, a', l) and a >= 0 \
+       0.0 &"otherwise"
+     )
+  $ where $bold(p)_n (k)$ denotes the probability that the sum of $n$ dice equals $k$.
+]
 
-Therefore, any state $S$ can be defined by the tuple $(s_0, s_1, l)$, where $s_0$ denotes the score of the player currently rolling, $s_1$ is the score of the other player, and $l$ is an indicator variable for whether the current turn is a terminal turn or normal turn.
+Notice that many possible invalid states exist, but have probability $0.0$ either because $bold(p)_n = 0.0$ (e.g., because $k < 0$), or because the transition violates some other rule like $l = "T", l' = "F"$ or $a' != q$.
 
-For an example of how this all fits together, consider a scenario where the state is $(5, 8, 0)$, with your turn to roll. You roll $2$ dice, and get a sum of $4$. So the state is now $(8, 9, 0)$. Notice that the eight has gone from the second argument to the first. This is because it's the opponent's turn, so their score is listed as being "up to roll".
-
-So in general, in some normal state $(s_0, s_1, 0)$, rolling $n > 0$ dice with sum $t$ makes the next state $(s_1, s_0 + t, 0)$, and in the case $n = 0$, the next state is $(s_1, s_0, 1)$. In some terminal state $(s_0, s_1, 1)$, rolling getting some sum $t$ will make the next state $(s_0, s_1 + t, 1)$, concluding the game.
+A game of greed is defined by its transition function $f: S times A -> [0, 1]$. This is a result of the nature of greed as a Markov Decision Process (MDP), which is also defined by the transition function. Because Greed is a MDP, it inherits all the properties of an MDP, including its memoryless property, and therefore its ability to be solved via dynamic programming, which we'll prove and apply in @policy.
 
 = PMF <pmf>
 
-Before beginning anything about actually deriving, it is imperative that we first find the most essential tool for solving this problem. What is the probability mass function of the sum of $n$ independent and identically distributed dice.
+Computing the probability mass function (pmf) of dice sums is essential for modeling Greed, as the game’s scoring depends on the distribution of outcomes from rolling multiple dice. Specifically, we require the pmf of the sum of $n$ independent and identically distributed (i.i.d.) discrete uniform random variables on the set ${1, 2, ..., s}$---that is, the total when rolling $n$ fair $s$-sided dice. A closed-form expression for this distribution is known @analyticscheck2020dice:
 
-First, consider just a single dice. It has pmf $
-  D_i^((s))(d) = cases(
-    1 / s & "if" d in {1,dots, s} \
-    0 & "otherwise"
+#theorem(title: "PMF of dice sum")[
+  Let $bold(p)(t | n, s)$ denote the probability that the sum of $n$ i.i.d. discrete uniform random variables on the set ${1, 2, ..., s}$ equals $t$. Then: $
+    bold(p)(t | n, s) = 1 / s^n sum_(k = 0)^(floor((t-n) / s)) (-1)^k binom(n, k) binom(t - s k - 1, n - 1)
+  $
+]
+
+This formula is exact, but computationally expensive for large $n$ and $s$ due to the growth of binomial coefficients. In practice, we use the Fast Fourier Transform (FFT) to compute the pmf more efficiently via convolution.
+
+For a single die: $
+  bold(p)(t | 1, s) = cases(
+    1/s &"if" 1 <= t <= s,
+    0 &"otherwise"
   )
-$ So let the random variable $T$ denote the sum of $n$ iid random dice, each with $s$ sides. It can thusly be written $
-  T: (NN_0)^n -> RR, T := D_(1)^((s))(d_1) + dots.h.c + D_(n)^((s))(d_n)
-$ Therefore, our goal is to find the pmf of $T$, which is notated $bold("p")_T^((n, s))(t)$, dependent on parameters $n, s$.
+$
 
-There are multiple ways to go about finding this pmf. One such method involves combinatorics. This paper will instead use moment generating functions and polynomials.
+For $n > 1$ dice, we compute recursively via convolution: $
+  bold(p)(t | n, s) = sum_(k=1)^s bold(p)(t - k | n - 1, s) dot bold(p)(k | 1, s)
+$
 
-#theorem[
-  Probability mass function of $T^((n, s)$ is defined $
-  bold("p")_(T)^((n, s))(t) = 1/s^n sum_(k = 0)^(floor.l frac(t-n, s) floor.r) (-1)^k binom(n, k) binom(t-s dot.op k-1, n-1) $
+= Policy Solver <policy>
+
+It's worth expanding on the concept of a payoff. In the rules, the payoff function occurs only at the conclusion of the game. We generalize the payoff function to include intermediate states, allowing us to optimize the expected payoff at each step.
+
+#remark[
+  Importantly, the payoff is not a probability---it does not sum to 1 (it sums to 0, as this is a zero-sum game).
 ]
 
-But to get there, we're going to first need to prove some lemmas.
-
-#lemma[Let $M_(T)^((n, s))$ be the moment generating function of $T$, then $
-  M_(T)^((n, s)) = 1 / s^n (e^t + e^(2 t) + dots.h.c + e^(s t))^n $
+#definition(title: "Payoff")[
+  The _payoff_ is a mapping $V: S -> RR$, where $S$ is the set of all game states. For terminal states, this function is specified directly by the rules of the game (denoted $O$).
 ]
+
+This value reflects how favorable a state is for the active player:
+- $V(s) = 1$: the active player has (or is guaranteed to) win;
+- $V(s) = -1$: the active player has (or is guaranteed to) lose;
+- $V(s) = 0$: the game is balanced or results in a tie.
+
+To optimize Greed, we must consider not only the value of a state but also the value of actions taken from that state.
+
+#definition(title: "Action-Value")[
+  The _action-value_ function is a mapping $Q: S times A -> RR$, where $Q(s, a)$ represents the expected payoff of taking action $a$ in state $s$, and then following some policy $pi$ thereafter.
+
+  In particular: $Q_(pi)(s, a)$ is the expected payoff under a specific policy $pi$.
+]
+
+#definition(title: "Policy")[
+  A _policy_ is a function $pi: S -> A$, which selects an action for every state. It defines the strategy followed by the player.
+]
+
+#definition(title: "Optimal Policy")[
+  The _optimal policy_ $pi_star$  is one that maximizes the expected payoff for the active player. Formally, for all states $s in S$, $
+    pi_(star)(s) := "arg" max_(a in A) Q_(pi_star)(s, a)
+  $
+]
+
+To find this optimal policy, we use *minimax via dynamic programming*. This approach calculates values from the end of the game backward to the initial state, ensuring optimal decisions at each step.
+
+Practically, this means we memoize the results of previously computed states to avoid redundant calculations. On an implementation level, instead we simply evaluate states in reverse order, using the structure of the game to build up the full value and policy functions.
+
+== Terminal States
+
+For terminal states, the problem is simple, find some $n$ that maximizes the probability that your sum $t$ will yield $a + t in [q, M]$. More precisely, for a game state $(a, q, T)$ we optimize the expected payoff
+
+#equation[$
+  n_star := max_(n in [0, oo)) sum_(t = n)^(s n) cases(
+    1 &"if" q < a + t <= M \
+    0 &"if" a + t = q \
+    -1 &"otherwise"
+  )
+$]
+
+Of course, it's impossible to test every possible $n$ in practice. Luckily, there is an upper bound on the optimal $n$ that can be derived from the game's parameters. Specifically, we can show that #proposition(title: "Upper Bound on Actions")[
+  In a state $(a, q, l)$, the optimal number of dice to roll satisfies $
+    n_star <= ceil((2 (M - a)) / (s + 1)) := n_"max"
+  $
+] <prop:upper-bound-actions>
 
 #proof[
-  Recall the pmf of $D_(i)^((s))$. It's moment generating function is defined as $
-    M_(D_i^((s)))(t) = EE[e^(t D_(i)^((s)))] = 1/s (e^t + e^(2 t) + dots.h.c + e^(s t))
-  $ Since $D_(i)^((s))$ are all independent and identically distributed, $
-    M_(T)(t) &= EE[e^(t T)] =
-    EE[e^(t (D_(1)^((s)) + dots.h.c + D_(n)^((s))))] =
-    product_(i = 1)^n EE[ e^(t D_i^((s)))] \
-    &= product_(i = 1)^n [1 / s (e^t + e^(2 t) + dots.h.c + e^(s t))] \
-    &= 1 / s^n (e^t + e^(2 t) + dots.h.c + e^(s t))^n
-  $
+  Note that the expected value of $n$ die with $s$ sides is $(n (s + 1)) / 2$. Thus $n_("max")$ is the point where the mean of $n$ exceeds the max score.
 
-  Probability distributions and moment generating functions have a one-to-one correspondence. So for a discrete random variable $X$ with probability distribution $
-    f(x_i) = P(X = x_i) = p_i "for" i = 1, 2,... k
-  $ then it's mfg is $
-    M_X (t) &= EE[e^(t X)] = sum_x e^(t x) dot.op f(x) \
-    &= p_1 dot.op e^(t x_1) + dots.h.c + p_k dot.op e^(t x_k).
-  $ and visa versa (like in _HW 6, 2.1_).
+  The pmf of the sum of the dice is unimodal. Consider any following state where $a + t <= M$. For any two $n$ such that $n_("max") <= n_1 < n_2$, the probability of being at that score is strictly decreasing between $n_1$ and $n_2$. This occurs at every score that yields a positive payoff. Therefore the sum is strictly decreasing between $n_1$ and $n_2$.
 
-  It follows that for $t = 1$, the coefficients of the moment generating function are the probabilities of the random variable. Specifically, $P(X = x)$ is equal to the coefficient of the term $e^x$. Extending this principle to $T$, the coefficients of the multinomial outlines in *Lemma 1* correspond to the probabilities of rolling that corresponding sum, so $P(T = x)$ is still equal to the coefficient of the term $e^x$.
-
-  For clarity, let's use the interchangable but more interpretable multinomial $1/s^n (x + x^2 + dots.h.c + x^s)^n$. The coefficients of $g(x)$ are the same as the coefficients of $M_T$, so the math is the same.
+  This means that for any $n >= n_("max")$, the payoff will monotonically decrease. Therefore $n_star$ must be less than or equal to $n_("max")$.
 ]
 
-#lemma[For a multinomial $g(x) = 1/s^n (x + x^2 + dots.h.c + x^s)^n$, the coefficient of the $t^("th")$ term $x^t$ is given by $
-  1/s^n sum_(k = 0)^(floor.l frac(t - n, s) floor.r) (-1)^k binom(n, k) binom(k - s k - 1, n - 1) $
-]
+This is a reasonable upper bound. But we can actually do better. Running simulations on the a wide set of n, we find that the payoff function is unimodal with respect to $n$. This means that once the payoff starts decreasing, we can stop testing further $n$ and take the maximum.
 
-#proof[
-  Using the geometric series, rewrite $
-    g(x) =
-    1/s_n (x + dots.h.c + x^s)^n =
-    1/s_n ((x (x^s - 1)) / (x - 1))^n =
-    1/s_n (x^n (x^s - 1)^n) / (x - 1)^n
-  $
+$ --- $
 
-  Looking at the numerator $(x^s - 1)^n$, we can expand this with the binomial theorem, _Fact D.2. [ASV]_ $
-    (x^s + 1)^n = sum_(i = 0)^n binom(n, i) (x^s)^i dot.op (-1)^(n - i)
-  $ multiplying by $x^n$, this becomes $
-    x^n (x^s + 1)^n = sum_(i = 0)^n binom(n, i) x^(s i + n) dot.op (-1)^(n - i)
-  $
+Its possible to leverage previous knowledge to narrow the score of $n$ to test even more.
 
-  Looking at the denominator $(x - 1)^(- n)$. Rewrite this to $(- 1)^(- n) dot.op (1 - x)^(- n)$. Again this can be rewritten as the sum of binomial coefficients, but this time $(1 - x)^(- n)$ is a binomial series (an expansion of the binomial theorem for complex exponents), in specific the negative binomial. Starting by expanding the taylor series, $
-    f(x) = (1 - x)^(-n) &= sum_(j = 0)^oo (f^(k)(0)) / j! x^j \
-    &= 1 + n x + (n (n + 1)) / 2! x^2 + dots.h.c \
-  $ and since $
-    (n(n+1)(n+2) dots.h.c (n+j-1)) / j! = binom(n+j-1, j)
-  $ that means $
-    1 + n x + (n (n+1)) / 2! x^2 + dots.h.c = sum_(j = 0)^oo binom(n+j-1, j) x^j
-  $ and thus the denominator is $
-    (-1)^(-n) (x-1)^(-n) = (-1)^(-n) dot.op sum_(j = 0)^oo binom(n+j-1, j) x^j
-  $
+Let $s = (a, q, T), s' = (a, q + t, T)$ where $t > 0$. Let $n_star$ be the optimal number of dice to roll for state $s$, and $n^'_star$ be the optimal number of dice to roll for state $s'$. It's guaranteed that $n^'_star <= n_star$. Similarly, for $s = (a, q, T), s' = (a - t, q, T)$, it's also true that $n^'_star <= n_star$.
 
-  So together, the full equation of $g(x)$ becomes the product of the numerator and denominator as such $
-    g(x) = (sum_(i = 0)^n binom(n, i) x^(s i + n) dot.op (-1)^(n - i)) ((-1)^n dot.op sum_(j = 0)^oo binom(n + j - 1, j) x^j)
-  $ Moving the $(- 1)^(- n)$ to the other equation and then simplifying $(- 1)^(- i)$ to $(- 1)^i$ $
-    g(x) = (sum_(i = 0)^n (-1)^i binom(n, i) x^(s i + n)) (sum_(j = 0)^oo binom(n + j - 1, j) x^j)
-  $
+Exploiting this property, we can strategically start from $(M, 0, T)$ and evaluate each row $(M, 0, T), (M, 1, T), ..., (M, M, T)$, using the previous $n_star$ as the starting point. This then repeats for each column as well.
 
-  The finite sum can be though of as an infinite sum that takes $0$ whenever $i > n$. This allows us to use Cauchy product to get the coefficients, which generally states that: $
-    (sum_(i = 0)^oo a_i x^i) (sum_(j = 0)^oo b_j x^j) = sum_(k = 0)^oo c_k x^k
-  $ Where the coefficients $c_k$ are defined as $
-    c_k = sum_(l = 0)^k a_l b_(k - l)
-  $
+== Normal States
 
-  Doing some careful accounting of coefficients (_authors note:_ I genuinely don't know what happened for this step), this yields the double summation and result $
-    g(x) = 1/s^n sum_(k = 0)^oo (sum_(l = 0)^(floor.l frac(k - n, s) floor.r) (-1)^k binom(n, k) binom(k - s l - 1, n - 1)) x^k
-  $ Which means that the coefficient of $x^t$ is $
-    1/s^n sum_(l = 0)^(floor.l frac(t - n, s) floor.r) (-1)^k binom(n, k) binom(k - s l - 1, n - 1)
-  $
+For normal states, optimization is more complex, as it becomes necessary to consider future states when optimizing the policy. As already mentioned, the way to accomplish this task is to use dynamic programming, starting from high scores and going backwards.
 
-  By recognizing that the coefficients of the multinomial directly represent the probabilities in the probability mass function (pmf), as previously explained, we can straightforwardly apply *lemma 2* to determine the pmf of $T$ is given by.
-]
+Consider the max score $(M, M, F)$. In this state, the active player is forced to roll $0$ dice, or otherwise lose. Thus the _only_ potentially non-negative payoff is to roll $0$ dice; this is the optimal policy. The payoff for the opponent is whatever the payoff of the terminal state $(M, M, T)$. Since this is a zero-sum game, our score is the negative of the opponent's score.
 
-= Optimization of Terminal States <optimization-of-terminal-states>
-#figure(image("assets/Screenshot 2023-12-09 at 21.07.12.png", width: 90.0%),
-  caption: [
-    Visual demonstration of terminal states
-  ]
+Now consider two states $(M - 1, M, F), (M, M - 1, F)$. In these states, the only possible next states are busts, $(M, M, F)$, or terminal states. Therefore the payoffs of the next states are all previously computed. Thus the optimal policy for a state $s = (a, q, F)$ can be computed by
+
+#equation[$
+  n_star := max_(n in NN) sum_(t = n)^(s) bold(p)(t | n, s) dot.op Q(s, a)
+$]
+
+This continues until $(0, 0, F)$, at which point all normal states have been computed.
+
+Like with terminal states, it's not possible to try all all possible $n$, but luckily @prop:upper-bound-actions works for normal states as well. There is no massive tricks here _as of yet_, but it is possible to compute certain states (e.g., $(M - 1, M, F), (M, M - 1, F)$) in parallel since they will never overlap.
+
+= Optimal Policy Analysis <analysis>
+
+With the theoretical framework established, we implemented the dynamic programming algorithm to compute optimal policies for Greed across various rulesets. Our analysis reveals fascinating strategic patterns that emerge from the interplay between risk and reward in this deceptively simple game.
+
+The following visualizations present the computed optimal policies and their associated payoffs for both terminal and normal game states. These visualizations provide many insights into the strategic principles of Greed, and what those principles say about the game itself.
+
+#let terminal-payoffs = figure(
+  image("assets/terminal_payoffs.svg"),
+  caption: [Optimal payoffs for terminal states]
+)
+#let normal-payoffs = figure(
+  image("assets/normal_payoffs.svg"),
+  caption: [Optimal payoffs for normal states]
+)
+#let terminal-n = figure(
+  image("assets/terminal_n.svg"),
+  caption: [Optimal die to throw for terminal states]
+)
+#let normal-n = figure(
+  image("assets/normal_n.svg"),
+  caption: [Optimal die to throw for normal states]
 )
 
-Considering that normal states will eventually terminate at terminal states, it is natural to first consider and calculate these states.
-
-In order to find the optimal action in terminal states, it is useful to reframe the problem as “What is the optimal $n$ to maximize the probability of getting a new score $s_p + t$ between $s_o$, and $M$?\" Or more precisely, given a state $(s_p, s_o, 1)$, what is the optimal $n$ such that the expected rating is maximized.
-
-Rating in this context is a metric that we use to determine the favorability of a state. We already defined the rating of winnign and losing, but here we extend rating further, to judge whether a state is more likely to result in winning or tying over losing. We define is as follows $
-  text("rating")((s_p, s_o, 1), n) := sum_(t = s_o + 1)^(M) bold("p")_(T)^((n, s)) (t-s_p) + 1/2 dot.op bold("p")_T^((n, s)) (s_o - s_p)
-$ where the summation describes the weighted sum of all next states given $n$, weighted according to their probability (transition matrix), hence rating is the expectation of its next possible states.
-
-Since $n_star$ is the optimizer of rating, it is given by $
-  n_star (s_0, s_1, 1) colon.eq upright("argmax")_n {upright("rating") ((s_0, s_1, 1), n)}
-$
-
-Notice that the optimal rating comes for free. It's the rating that was
-optimized for in finding $n_star$, so no additional work is required. $
-  text("rating")_star ((s_p, s_o, 1), n_star) := text("rating") ((s_p, s_o, 1), n_star)
-$
-
-= Calculating Terminal States <calculating-terminal-states>
-
-Up to now, we've found a theoretical method for finding the optimal states. Unfortunately, results have to be concrete, so for practical computational purposes, it is crucial to determine a systematic and efficient approach. This would avoid the need to evaluate every possible $n$ from $s_o - s_p$ up to $M - s_p$, which is wildly impractical at larger board sizes. When should the algorithm stop?:w
-
-There are in fact certain states where the choice is immediately obvious without any need for calculations with pmfs. These states can be broken into 2 types that I'll call _forfeit_ and _certain victory_.
-
-In _forfeit_ states, the opponent decided to end the game while they were behind, which guarantees that you win by doing nothing and rolling 0 dice. This state will never occur in optimal Greed because a player that is behind would never roll 0 dice, since their rating would be 0, and they can always improve by rolling some optimum $n$ dice.
-
-In _certain victory_ states, the relation between the player $s_p$ and opponent $s_o$ compared to the opponent and the maximum $M$ is such that for some $n$, all possible resulting sums $s_p + t$ are in the range $s_o < s_p + t <= M$. Thus there is some $n_star$ with a 100% win rate.
-
-However, these states are edge cases in optimal greed. For the most part, all terminal states that are reached will not have a move which assured victory. These are the states where an optimization algorithm is needed.
-
-In order to find that algorithm, first let's gain some insight into some of the properties of this distribution.
-
-#proposition[$ EE[T^((s, n))] = n(s + 1) / 2 $]
-
-#proof[$
-  EE[T^((s, n))] &= EE[D_1^((s)) + dots.h.c + D_n^((s))] = EE[D_1^((s))] + dots.h.c + EE[D_n^((s))] \
-  &= n dot.op EE[D_1^((s))] = n dot.op sum_(k = 1)^s k dot.op 1/s = n dot.op 1/s dot.op (s(s + 1)) / 2 \
-  &= n(s + 1) / 2 $
+#place(auto, scope: "parent", float: true)[
+  #grid(
+    columns: 2,
+    box[#terminal-payoffs <fig:terminal-payoffs>],
+    box[#normal-payoffs <fig:normal-payoffs>],
+    v(1em), v(1em), // add v padding so plot's don't overlap captions
+    box[#terminal-n <fig:terminal-n>],
+    box[#normal-n <fig:normal-n>],
+  )
 ]
 
-#proposition[$ "Var"[T^((n, s))] = (s^2 - 1) / 12 $]
+== A Game of Chicken
 
-#proof[$
-    text("Var")[T^((n, s))] &= text("Var")[D_1^((s)) + dots.h.c + D_n^((s))] \
-    &= text("Var")[D_1^((s))] + dots.h.c + text("Var")[D_n^((s))] \
-    &= n dot.op text("Var")[D_1^((s))]
-  $
+Looking at @fig:terminal-payoffs, its clear that you should absolutely not stop rolling dice if you are not already very close to the max score, because otherwise the opponent can easily catch up and win. The most notable feature is the band of balanced endgames (the white band), which follows a square-root function. Relating the terminal payoffs to the normal states, notice that the (bid) red area over the white band is the inverse of the (good) blue area for the normal payoffs. This is expected, since normal states in the positive region will lead the opponent to the corresponding negative region in the terminal states.
 
-  The variance of $D_1^((s))$ is given by $EE[(D_1^((s)))^2] - EE[D_1^((s))]^2$ as stated in _Fact 3.48 [ASV]_. $
-    EE[(D_1^((s)))^2] &= sum_(k = 1)^s k^2 dot.op 1 / s = 1/s (s(s + 1)(2 s + 1)) / 6 = ((s + 1) (2 s + 1)) / 6 \
-    EE[ T^((n, s))] &= sum_(k = 1)^s k dot.op 1 / s = 1 / s dot.op frac((s) (s + 1), 2) = (s + 1) / 2
-  $
+Another detail worth mentioning is the 4 white tiles at $(100, 100, F), (99, 99, F), ..., (96, 96, F)$ These states are ties, because rolling even one die will result in a bust at least half the time.
 
-  Thus the expectation of a single die $D_1^((s)$ is given by $
-    text("Var")[D_1^((s))] &= EE[(D_1^((s))^2] - EE[D_1^((s))]^2 \
-    &= ((s + 1)(2 s + 1)) / 6 - ((s + 1) / 2)^2 \
-    &= (2 s^2 + 3 s + 1) / 6 - (s^2 + 2 s + 1) / 4 \
-    &= (4 s^2 + 6 s + 2) / 12 - (3 s^2 + 6 s + 3) / 12 \
-    &= (s^2 - 1) / 12
-  $ Thus the variance of $T$ is $
-    text("Var")[T^((s, n))] = n dot.op text("Var")[D_1^((s))] = n ((s^2 - 1) / 12)
-  $
-]
+== A balanced game
 
-#figure(image("assets/Screenshot 2023-12-10 at 19.58.36.png", width: 80.0%),
-  caption: [
-    Distributions of $n = 2, 3, 4$ with $s = 6$
-  ]
-)
+Looking instead at the normal states, notice that the payoffs for normal states are very balanced. Unless you are in an extreme position, the game is a deadlock. Adjacent to all this, notice that the blue band for normal states corresponds to the white band on the normal rolls, signifying that when you have even a little advantage, you should aim to end the game on that turn. This implies that the game is very endgame focused, and the aim is to gain an advantage and end the game is fast as possible.
 
-To derive an algorithm, this paper will make a few significant conjectures:
+== Optimal die Oddities
 
-#conjecture[
-  For any $n$ with corresponding $T^((n, s))$ with mean $s_p + EE[T^((n, s))]$ above $(s_o + M) / 2$, rating is monotonically decreasing as a function of $n$.
-]
-
-#conjecture[Rating as a function of $T^((n, s))$ with parameter $n$ is unimodal]
-
-(_authors note:_ I settled on these higher level conjectures for brevity)
-
-With this, deriving an algorithm is simple.
-
-+ Find the smallest $n$ such that $s_p + EE[ T^((n, s))] > frac(s_o + M, 2)$ $
-  & s_p + EE[T^((n, s))] > (s_o + M) / 2 => s_p + (n(s + 1)) / 2 > frac(s_o + M, 2) &  & "from lemma 3" \
-  => & n(s + 1) / 2 > (s_o + M - 2 s_p) / 2 => n > (M + s_o - 2 s_p) / (s + 1) $
-
-+ Calculate rating, keeping track of the highest one. When the rating starts to decrease, stop, and select the greatest $text("rating")_star$ and corresponding $n_star$
-
-This will work because the rating distribution is unimodal, i.e. *conjecture 2*. From *conjecture 1*, starting above $n_0 = frac(M + s_o - 2 s_p, s + 1)$ means all $n > n_0$ have decreasing rating. This implies that $n_0$ must be to the left of the mean of the rating distribution. That means that when rating begins to decrease, we've transitioned from above the mean to below the mean. And since rating is unimodal, this must be the true maxima.
-
-Applying the algorithm to the game with $M = 20, s = 3$, the terminal states are visualized below, with the label corresponding to the $n_star$ and the color corresponding to the rating.
-
-#figure(image("assets/Screenshot 2023-12-12 at 20.21.12.png", width: 70.0%),
-  caption: [
-    Optimal actions and ratings for terminal states
-  ]
-)
-
-= Optimization of Normal States <optimization-of-normal-states>
-
-Finally, we can shift focus to normal states. Normal states are differentiable from terminal states because the player has to consider which states they could move to next, and how favorable those states are, and so on in a recursive manner, instead of just once.
-
-And yet the way that rating is calculated is almost identical to terminal states: The expectation of the rating for the next possible states $S_1$ given some $n$. Which is, again, the weighted sum of the rating over all possible next states $S_1$, weighted by the transition matrix between the current and next states for $n$.
-
-Let's give an example. Imagine that the optimal $n_star$ and
-$text("rating")_star$ for every other state is known.
-
-Consider rolling $2$ dice at state $(2, 6)$. You could end up at any of the following states: $S_1 = {(6, 4), (6, 5), (6, 6), (6, 7)}$. So since we know the rating of all these states, we can calculate the rating given $n$ by taking the weighted sum over $S_1$, with weights given by the pmf of $T$, i.e. $bold("p")_T^((n, s))(2), ..., bold("p")_T^((n, s))(4)$.
-
-It's important to note that the rating at a resulting state like $(6, 4)$ represents the opponent's rating. However, rating is complementary. You have rating $P ("winning") + 1 / 2 P ("tying")$, and the opponent has rating $P ("losing") + 1 / 2 P ("tying")$. Thus $"player rating" + "opponent rating" = 1$, thus they are complementary.
-
-Hence, the rating for landing on a state $S$ is $1 - text("rating")(S, n_star)$, where $n_star$ is the optimal $n$ for that state.
-
-So the rating function is given by $
-  text("rating")((s_p, s_o, 0), n) := cases(
-    sum_(t = n)^(s dot.op n) 1 - text("rating")((s_o, s_p + t, 0), n_star) & "if" n > 0 \
-    1 - text("rating") ((s_o, s_p, 1), n_star) & "if" n = 0)
-$ Thus the optimal $n_star$ given any possible state $S$, normal or terminal is now defined to be $
-  n_star = text("argmax")_n {
-    sum_(t = n)^(s dot.op n) 1 - text("rating")(s_o, s_p + t, { 0 "if" n = 1 "else" 0 })
-  }
-$
-with the rating function being either equation (1) or (4) depending on whether its a terminal state or normal state.
-
-With $"rating"_star$ defined the same as equation (3).
-
-_Remark:_ rating is guaranteed to produce a $n_star$ and $upright("rating")_star$ since eventually the state will either be terminal (which has concrete $n_star$ and $"rating"_star$) or go bust.
-
-= Calculating Normal States <calculating-normal-states>
-While the recursive approach with memoization, (the classic dynamic programming solution) would suffice as an algorithm to determine normal states, this either does a massive amount of duplicate work, or adds significant complexity. Instead, this paper suggests an iterative approach that utilizes a optimal ordering of calculating states.
-
-Consider that we've already calculated optimal actions and ratings for terminal states. This means that the only unknowns are other normal states.
-
-So what if we looked at the state $(M, M, 0)$? In this state, the only possible move would be either rolling $0$ and going to a terminal state, or going bust. Looking at the states adjacent to $(M, M, 0)$, these states can also go to a terminal state or go bust. They could also transition to $(M, M, 0)$, but that state is already calculated, so it still works.
-
-In fact, because scores only increases, as the game goes on the sum of $s_p + s_o$ also increases. So if we calculate the states from the maximum possible sum $s_p + s_o$ and decrease, then we should never reach a state that we don't already know the answer to. This is the optimal ordering.
-
-Along with the ordering, its also important to find a cutoff for checking $n$ values, like in terminal states. Since it's hard to know how normal states will effect each other, the upper bound will have to be less tight than it is for terminal states.
-
-We can make this upper bound $n_0$ be where the mean $s_p + EE[T^((n, s))]$ is greater than $M$, calculated to be $
-  s_p + EE[T^((n, s))] > M => s_p + frac(n (s + 1), 2) > M => n > (2 (M - s_p)) / (s + 1)
-$ This works since any $n > n_0$ will have the exact same next states but
-every probability will be smaller than it would be for $n_0$.
-
-Applying the algorithm to the game with $M = 20, s = 3$, the normal states are visualized below, with the label corresponding to the $n_star$ and the color corresponding to the rating.
-
-#figure(image("assets/Screenshot 2023-12-14 at 01.43.15.png", width: 70.0%),
-  caption: [
-    Optimal actions and ratings for normal states
-  ]
-)
+From an optimal die perspective, we see linear gradients, which is intuitive. After all, the goal is to either get as close to the maximum (for normal states) or between the opponent and the max (for terminal states). What's interesting are the edges, which tend to have odd values. In the terminal states, there is this odd aliasing effect on the edge between standing or rolling. This is likely an artifact of determining the optimal die to throw. For cases where the active player is behind, if it's possible for them to roll some $n$ dice and always land between the opponent and the max, they should do so. But if its not possible, then they have to compromise, which appears to cause they to roll more dice than they would if they have some perfect $n$ that guarantees a win.
 
 = Conclusion <conclusion>
-With both normal and terminal states calculated, we have thusly achieved our stated aim of finding some optimal strategy for playing greed. In terms of markov chains, we've tuned the parameter $n$ in order to optimize a transition matrix over the game states which optimizes for a heuristic that we defined called rating.
 
-In doing so, we've defined a few significant functions. Primarily, we've defined a function for determining the rating of any possible state $S$, and from that also defining an optimal $n$ and rating, denoted $n_star$ and $upright("rating")_star$. In order to do so, we also derived the pmf for the sum of $n$ fair, independent and identically distributed dice.
+Our analysis revealed that Greed is fundamentally a game of careful endgame positioning---while mid-game states tend to be balanced, securing even a small advantage can be decisive if leveraged to end the game immediately. The visualizations of optimal policies highlighted interesting strategic patterns, including the critical square-root boundary between winning and losing terminal positions. These insights not only deepen our theoretical understanding of Greed but also provide practical guidance for optimal play.
 
-As stated previously, there are a few limitations to this analysis. the biggest, of course, is that rating is not an objective function of success. A player could determine that tying is just as bad as winning, and have a unique, yet completely valid rating metric. Additionally, it is unclear whether defining rating as the weighted sum of the resulting states $S_1$ is truly the optimal way to relate ratings to each other.
+Future work could explore extensions to multiplayer variants or investigate the impact of different scoring rules on optimal strategies. There is also, I suspect, more room for performance improvements. However, the current improvements are enough for the goals of this project.
 
-As for additional research, there are many possible routes through which further research could proceed. Of primary relevance is a more mathematically rigorous framework. This paper briefly touches on many important and relevant ideas: markov decision chains, mathematical optimization for dynamic programming, reinforcement learning, etc. This problem has significant overlap with all of these fields. A more thorough analysis of this problem which incorporates these concepts would be a welcome addition.
-
-Additionally, there are many open questions that further research could study. Top among them is to determine whether the conjectures described in "Calculating Terminal State" are in fact true, and thus whether the algorithm is sound. Another potential path is to investigate normal states, and see if there is some pattern which can help improve the upper bound.
-
-As Greed is completely unexplored, there is massive room for further discovery and investigation in optimization, patterns, and more.
-
-One additional note: A corollary of finding the optimal rating for every state is that we can determine whether going first has a benefit for rating, and how much. It turns out that for a game environment of $M = 10, s = 3$, going first has a rating of $0.54$, so it is very slightly advantageous to go first. And the rating implies that going first improves the chance of winning vs losing by about 4%. Take that conjecture as you will.
-
-All code used to calculate the results is available here: #link("https://github.com/Approximately-Equal/Greed.git")
-
-#bibliography("assets/references.yml", full: true)
+Greed is ultimately a simple game, but one which illuminates the patterns and complexity hidden within its mechanics. Like Conway's game of life, it's a game of simple rules that lead to complex behavior.

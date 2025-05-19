@@ -1,3 +1,18 @@
+greed:
+  type: misc
+  title: Source code for *A Policy Optimization of Greed*
+  year: 2023
+  url: https://github.com/approximately-equal/greed
+
+# Derivation of the pmf for the sum of n i.i.d. die, each with s sides
+analyticscheck2020dice:
+  type: web
+  title: Deriving the Probability Distribution for the Sum of Many Dice Rolls
+  author: Analytics Check
+  date: 2020-02-20
+  url: https://www.analyticscheck.net/posts/sums-dice-rolls
+  note: Accessed 11 December 2023
+
 anderson2018introduction:
   type: book
   title: Introduction to Probability
@@ -9,6 +24,7 @@ anderson2018introduction:
   publisher:
     name: Cambridge University Press
     location: Cambridge
+
 singh_prob_sum_dice:
   type: article
   title: "The Probability Distribution of the Sum of Several Dice: Slot Applications"
@@ -20,10 +36,3 @@ singh_prob_sum_dice:
   parent:
     type: periodical
     title: Gaming Research & Review Journal
-analyticscheck2020dice:
-  type: web
-  title: Deriving the Probability Distribution for the Sum of Many Dice Rolls
-  author: Analytics Check
-  date: 2020-02-20
-  url: https://www.analyticscheck.net/posts/sums-dice-rolls
-  note: Accessed 11 December 2023

@@ -12,25 +12,38 @@ payoff_colors <- scale_fill_gradient2(low = "red", mid = "white", high = "blue",
 # n: white (zero) -> blue (large)
 n_colors <- scale_fill_gradient(low = "white", high = "blue")
 
+# Custom theme with larger text
+greed_theme <- function() {
+  theme(
+    # plot.title = element_text(size = 40),
+    # axis.title = element_text(size = 20),
+    # axis.text = element_text(size = 20),
+    # legend.title = element_text(size = 20),
+    # legend.text = element_text(size = 20)
+  )
+}
+
 terminal_payoffs <- ggplot(terminal_states, aes(x = active, y = queued, fill = payoff)) +
-    geom_tile() +
-    payoff_colors +
-    labs(
-        title = "Terminal Payoffs",
-        x = "Score for active",
-        y = "Score for queued",
-        fill = "Payoff"
-    )
+  geom_tile() +
+  payoff_colors +
+  labs(
+      title = "Terminal Payoffs",
+      x = "Score for active",
+      y = "Score for queued",
+      fill = "Payoff"
+  ) +
+  greed_theme()
 
 normal_payoffs <- ggplot(normal_states, aes(x = active, y = queued, fill = payoff)) +
-    geom_tile() +
-    payoff_colors +
-    labs(
-        title = "Normal Payoffs",
-        x = "Score for active",
-        y = "Score for queued",
-        fill = "Payoff"
-    )
+  geom_tile() +
+  payoff_colors +
+  labs(
+      title = "Normal Payoffs",
+      x = "Score for active",
+      y = "Score for queued",
+      fill = "Payoff"
+  ) +
+  greed_theme()
 
 terminal_n <- ggplot(terminal_states, aes(x = active, y = queued, fill = n)) +
     geom_tile() +
@@ -39,8 +52,9 @@ terminal_n <- ggplot(terminal_states, aes(x = active, y = queued, fill = n)) +
         title = "Terminal Rolls",
         x = "Score for active",
         y = "Score for queued",
-        fill = "Roll count"
-    )
+        fill = "# Dice"
+    ) +
+    greed_theme()
 
 normal_n <- ggplot(normal_states, aes(x = active, y = queued, fill = n)) +
     geom_tile() +
@@ -49,10 +63,15 @@ normal_n <- ggplot(normal_states, aes(x = active, y = queued, fill = n)) +
         title = "Normal Rolls",
         x = "Score for active",
         y = "Score for queued",
-        fill = "Roll count"
-    )
+        fill = "# Dice"
+    ) +
+    greed_theme()
 
-ggsave("terminal_payoffs.png", width = 10, height = 10, terminal_payoffs)
-ggsave("normal_payoffs.png", width = 10, height = 10, normal_payoffs)
-ggsave("terminal_n.png", width = 10, height = 10, terminal_n)
-ggsave("normal_n.png", width = 10, height = 10, normal_n)
+save_plot <- function(plot, filename) {
+    ggsave(filename, width = 12, height = 12, units = "cm", dpi = 300, plot)
+}
+
+save_plot(terminal_payoffs, "../../paper/assets/terminal_payoffs.svg")
+save_plot(normal_payoffs, "../../paper/assets/normal_payoffs.svg")
+save_plot(terminal_n, "../../paper/assets/terminal_n.svg")
+save_plot(normal_n, "../../paper/assets/normal_n.svg")
