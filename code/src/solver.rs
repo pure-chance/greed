@@ -165,7 +165,7 @@ pub struct GreedSolver {
     configuration: Configuration,
     /// The solvers policy (state-action pairs)
     policy: Policy,
-    /// PMF's
+    /// Precomputed PMFs
     pmfs: Vec<Vec<f64>>,
 }
 
