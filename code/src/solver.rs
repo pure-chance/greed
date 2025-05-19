@@ -55,13 +55,13 @@ pub struct Action {
     /// Dice to roll
     n: u16,
     /// Rating given a roll of `n` dice.
-    rating: f64,
+    payoff: f64,
 }
 
 impl Action {
     #[must_use]
     pub fn new(n: u16, rating: f64) -> Self {
-        Action { n, rating }
+        Action { n, payoff: rating }
     }
 }
 
@@ -228,19 +228,19 @@ impl GreedSolver {
     fn find_optimal_terminal_action(&self, state: State) -> Action {
         if state.active > state.queued {
             // If already ahead, doing nothing wins 100% of the time.
-            return Action { n: 0, rating: 1.0 };
+            return Action { n: 0, payoff: 1.0 };
         }
 
-        let mut optimal_action = Action::new(0, 0.0);
-        let mut dice_rolled = (state.queued - state.active) / self.sides(); // Start at min non-zero() rating.
+        let mut optimal_action = Action::new(0, -1.0);
+        let mut dice_rolled = (state.queued - state.active) / self.sides(); // Start at min non-zero rating.
 
         loop {
-            let current_rating = self.calc_terminal_rating(state, dice_rolled);
-            if optimal_action.rating - current_rating >= 10e-4 {
+            let current_payoff = self.calc_terminal_rating(state, dice_rolled);
+            if optimal_action.payoff - current_payoff >= 10e-4 {
                 break;
             }
-            if current_rating > optimal_action.rating {
-                optimal_action = Action::new(dice_rolled, current_rating);
+            if current_payoff > optimal_action.payoff {
+                optimal_action = Action::new(dice_rolled, current_payoff);
             }
             dice_rolled += 1;
         }
@@ -251,20 +251,18 @@ impl GreedSolver {
     fn calc_terminal_rating(&self, state: State, dice_rolled: u16) -> f64 {
         if dice_rolled == 0 {
             return match state.active.cmp(&state.queued) {
-                Ordering::Less => 0.0,
-                Ordering::Equal => 0.5,
+                Ordering::Less => -1.0,
+                Ordering::Equal => 0.0,
                 Ordering::Greater => 1.0,
             };
         }
+
         (dice_rolled..=self.sides() * dice_rolled).fold(0.0, |acc, dice_total| {
+            let p_for_total = self.pmfs[dice_rolled as usize][(dice_total - dice_rolled) as usize];
             match (state.active + dice_total).cmp(&state.queued) {
-                Ordering::Greater if state.active + dice_total <= self.max() => {
-                    acc + self.pmfs[dice_rolled as usize][(dice_total - dice_rolled) as usize]
-                }
-                Ordering::Equal => {
-                    acc + 0.5 * self.pmfs[dice_rolled as usize][(dice_total - dice_rolled) as usize]
-                }
-                _ => acc,
+                Ordering::Greater if state.active + dice_total <= self.max() => acc + p_for_total,
+                Ordering::Less | Ordering::Greater => acc - p_for_total, // lower score or bust
+                Ordering::Equal => acc,                                  // tie
             }
         })
     }
@@ -307,7 +305,7 @@ impl GreedSolver {
     ///
     /// This presupposes that the terminal states have already been solved, and that all ratings with a higher order have already been calculated. Will panic if this invariant is not met.
     fn find_optimal_normal_action(&self, state: State) -> Action {
-        let max_reasonable_n = 2 * (self.max() - state.active) / (self.sides() + 1) + 1; // +1 for safety of() checking high enough
+        let max_reasonable_n = 2 * (self.max() - state.active) / (self.sides() + 1) + 3; // +1 for safety of checking high enough
         let (optimal_roll, optimal_rating) = (0..=max_reasonable_n)
             .map(|dice_rolled| (dice_rolled, self.calc_normal_rating(state, dice_rolled)))
             .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
@@ -323,14 +321,14 @@ impl GreedSolver {
     pub fn calc_normal_rating(&self, state: State, dice_rolled: u16) -> f64 {
         if dice_rolled == 0 {
             let terminal_state = State::new(state.queued, state.active, true);
-            return 1.0 - self.policy.get(&terminal_state).rating;
+            return -self.policy.get(&terminal_state).payoff;
         }
         (dice_rolled..=self.sides() * dice_rolled).fold(0.0, |acc, dice_total| {
             if state.active + dice_total < self.max() {
                 let probability: f64 =
                     self.pmfs[dice_rolled as usize][(dice_total - dice_rolled) as usize];
                 let state = State::new(state.queued, state.active + dice_total, false);
-                let rating: f64 = 1.0 - self.policy.get(&state).rating;
+                let rating: f64 = -self.policy.get(&state).payoff;
                 acc + probability * rating
             } else {
                 acc
@@ -356,7 +354,7 @@ impl GreedSolver {
                 state.queued,
                 state.last,
                 action.n,
-                action.rating,
+                action.payoff,
             ))?;
         }
         writer.flush()?;
@@ -374,7 +372,7 @@ impl GreedSolver {
         for (state, action) in terminal_states {
             println!(
                 "({}, {}, terminal) => (dice: #{}, rating: {})",
-                state.active, state.queued, action.n, action.rating
+                state.active, state.queued, action.n, action.payoff
             );
         }
         println!();
@@ -382,7 +380,7 @@ impl GreedSolver {
         for (state, action) in normal_states {
             println!(
                 "({}, {}, normal) => (dice: #{}, rating: {})",
-                state.active, state.queued, action.n, action.rating
+                state.active, state.queued, action.n, action.payoff
             );
         }
     }
