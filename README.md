@@ -1,8 +1,8 @@
-# Greed---Optimal Play Solver
+# Greed—Optimal Policy Solver
 
 ## Background
 
-Greed is a dice-based two-player game where players try to get as close to the maximum score as possible without going bust. The player whose score is higher at the end of play wins. This project implements a dynamic programming solution to determine the optimal strategy for any game state.
+Greed is a dice-based two-player game where players try to get as close to the maximum score as possible without going bust. The player whose score is higher at the end of play wins. This project implements a dynamic programming solution to determine the optimal policy for any game state.
 
 ## Game Rules
 
@@ -12,10 +12,8 @@ Play continues back and forth until one player decides to roll 0 dice, signaling
 
 ## Project Structure
 
-- `/code`: Contains the core algorithm and implementation:
-- `/report`: Documents the mathematical theory and algorithms used.
-- `/presentation`: Contains colloquium slides and presentation materials.
-- `/visualize`: Tools for visualizing the optimal strategy.
+- `/code`: Contains the code to calculate the optimal policy and the scripts to visualize it.
+- `/paper`: Documents the mathematical theory and algorithms used.
 
 ## Usage
 
