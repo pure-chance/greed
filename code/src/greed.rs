@@ -4,7 +4,14 @@ use std::io::{stdin, Write};
 use colored::Colorize;
 use rand::{distr::Uniform, prelude::*};
 
-const WIDTH: usize = 41;
+const WIDTH: usize = 41; // based on banner width
+const BANNER: &str = r#"
+ ██████╗ ██████╗ ███████╗███████╗██████╗
+██╔════╝ ██╔══██╗██╔════╝██╔════╝██╔══██╗
+██║  ███╗██████╔╝█████╗  █████╗  ██║  ██║
+██║   ██║██╔══██╗██╔══╝  ██╔══╝  ██║  ██║
+╚██████╔╝██║  ██║███████╗███████╗██████╔╝
+ ╚═════╝ ╚═╝  ╚═╝╚══════╝╚══════╝╚═════╝"#;
 
 #[derive(Debug, Copy, Clone, Default)]
 pub struct Configuration {
@@ -97,15 +104,10 @@ impl Greed {
     }
     fn banner(max: u16, sides: u16) {
         let ruleset = format!("max score: {max}, sides: {sides}");
-        let ruleset_padding = (WIDTH - ruleset.len()) / 2;
+        let padding = (WIDTH.saturating_sub(ruleset.len())) / 2;
 
-        println!(" ██████╗ ██████╗ ███████╗███████╗██████╗ ");
-        println!("██╔════╝ ██╔══██╗██╔════╝██╔════╝██╔══██╗");
-        println!("██║  ███╗██████╔╝█████╗  █████╗  ██║  ██║");
-        println!("██║   ██║██╔══██╗██╔══╝  ██╔══╝  ██║  ██║");
-        println!("╚██████╔╝██║  ██║███████╗███████╗██████╔╝");
-        println!(" ╚═════╝ ╚═╝  ╚═╝╚══════╝╚══════╝╚═════╝ ");
-        println!("{pad}{ruleset}", pad = " ".repeat(ruleset_padding));
+        println!("{}", BANNER);
+        println!("{pad}{ruleset}", pad = " ".repeat(padding));
     }
     fn game_state(&self) {
         let active = format!("{}: {}", self.active_player().white(), self.state.active());
