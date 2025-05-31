@@ -82,8 +82,8 @@ Rscript heatmaps.R greed_100_6.csv # or whatever the path is
 
 | | **Terminal** | **Normal** |
 |----------------|------------------------------------------|----------------------------------------|
-| **Payoff** | ![Terminal Payoffs](paper/assets/terminal_payoffs.png) | ![Normal Payoffs](paper/assets/normal_payoffs.png) |
-| **n** | ![Terminal Rolls](paper/assets/terminal_n.png) | ![Normal Rolls](paper/assets/normal_n.png) |
+| **Payoff** | ![Terminal Payoffs](paper/assets/terminal_payoffs.svg) | ![Normal Payoffs](paper/assets/normal_payoffs.svg) |
+| **n** | ![Terminal Rolls](paper/assets/terminal_n.svg) | ![Normal Rolls](paper/assets/normal_n.svg) |
 
 
 ## Key Findings
