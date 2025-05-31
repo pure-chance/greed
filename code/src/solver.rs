@@ -3,22 +3,22 @@ use std::cmp::Ordering;
 use csv::Writer;
 use rayon::prelude::*;
 
-use crate::greed::{Configuration, State};
+use crate::greed::{Ruleset, State};
 use crate::pmf::fft_convolve;
 
-/// An action to perform, with its corresponding rating.
+/// The optimal action to perform, with its corresponding payoff
 #[derive(Debug, Copy, Clone, Default)]
 pub struct OptimalAction {
     /// Dice to roll
     n: u32,
-    /// Rating given a roll of `n` dice.
+    /// Payoff given a roll of `n` dice.
     payoff: f64,
 }
 
 impl OptimalAction {
     #[must_use]
-    pub fn new(n: u32, rating: f64) -> Self {
-        OptimalAction { n, payoff: rating }
+    pub fn new(n: u32, payoff: f64) -> Self {
+        OptimalAction { n, payoff }
     }
 }
 
@@ -120,8 +120,8 @@ impl IntoIterator for Policy {
 /// This pattern continues until we reach the minimum `turn + next` score. All normal states are now fully computed.
 #[derive(Debug, Clone, Default)]
 pub struct GreedSolver {
-    /// A configuration of Greed (max, sides)
-    configuration: Configuration,
+    /// A ruleset of Greed (max, sides)
+    ruleset: Ruleset,
     /// The solvers policy (state-action pairs)
     policy: Policy,
     /// Precomputed PMFs
@@ -133,7 +133,7 @@ impl GreedSolver {
     #[must_use]
     pub fn new(max: u32, sides: u32) -> Self {
         GreedSolver {
-            configuration: Configuration::new(max, sides),
+            ruleset: Ruleset::new(max, sides),
             policy: Policy::new(max),
             pmfs: Self::precompute_pmfs(max, sides),
         }
@@ -158,13 +158,15 @@ impl GreedSolver {
         // Solve all the normal states (in the correct order).
         self.solve_normal_states();
     }
+    /// Get the max score for the given ruleset
     #[must_use]
     pub fn max(&self) -> u32 {
-        self.configuration.max()
+        self.ruleset.max()
     }
+    /// Get the sides on each die for the given ruleset
     #[must_use]
     pub fn sides(&self) -> u32 {
-        self.configuration.sides()
+        self.ruleset.sides()
     }
 }
 
@@ -186,7 +188,7 @@ impl GreedSolver {
     }
     /// Find the optimal terminal action for a given state
     ///
-    /// Because the optimal action is defined as having the highest probability of having `total` fall between `queued` and `max`, the distribution of `rating` with respect to `n` is unimodal. This means that when the active player is behind we can search from `n = min_non-zero_rating` up until the rating starts decreasing, and then stop. This is guaranteed to have found the optimal action.
+    /// Because the optimal action is defined as having the highest probability of having `total` fall between `queued` and `max`, the distribution of `payoff` with respect to `n` is unimodal. This means that when the active player is behind we can search from `n = min_non-zero_payoff` up until the payoff starts decreasing, and then stop. This is guaranteed to have found the optimal action.
     fn find_optimal_terminal_action(&self, state: State) -> OptimalAction {
         if state.active() > state.queued() {
             // If already ahead, doing nothing wins 100% of the time.
@@ -194,10 +196,10 @@ impl GreedSolver {
         }
 
         let mut optimal_action = OptimalAction::new(0, -1.0);
-        let mut dice_rolled = (state.queued() - state.active()) / self.sides(); // Start at min non-zero rating.
+        let mut dice_rolled = (state.queued() - state.active()) / self.sides(); // Start at min non-zero payoff.
 
         loop {
-            let current_payoff = self.calc_terminal_rating(state, dice_rolled);
+            let current_payoff = self.calc_terminal_payoff(state, dice_rolled);
             if optimal_action.payoff - current_payoff >= 10e-4 {
                 break;
             }
@@ -209,8 +211,8 @@ impl GreedSolver {
 
         optimal_action
     }
-    /// Calculate the rating when in state `state` and rolling `dice_rolled` # of dice
-    fn calc_terminal_rating(&self, state: State, dice_rolled: u32) -> f64 {
+    /// Calculate the payoff when in state `state` and rolling `dice_rolled` # of dice
+    fn calc_terminal_payoff(&self, state: State, dice_rolled: u32) -> f64 {
         if dice_rolled == 0 {
             return match state.active().cmp(&state.queued()) {
                 Ordering::Less => -1.0,
@@ -266,22 +268,22 @@ impl GreedSolver {
     ///
     /// # Panics
     ///
-    /// This presupposes that the terminal states have already been solved, and that all ratings with a higher order have already been calculated. Will panic if this invariant is not met.
+    /// This presupposes that the terminal states have already been solved, and that all payoffs with a higher order have already been calculated. Will panic if this invariant is not met.
     fn find_optimal_normal_action(&self, state: State) -> OptimalAction {
         let max_reasonable_n = 2 * (self.max() - state.active()) / (self.sides() + 1) + 3; // +1 for safety of checking high enough
-        let (optimal_roll, optimal_rating) = (0..=max_reasonable_n)
-            .map(|dice_rolled| (dice_rolled, self.calc_normal_rating(state, dice_rolled)))
+        let (optimal_roll, optimal_payoff) = (0..=max_reasonable_n)
+            .map(|dice_rolled| (dice_rolled, self.calc_normal_payoff(state, dice_rolled)))
             .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
             .unwrap();
-        OptimalAction::new(optimal_roll, optimal_rating)
+        OptimalAction::new(optimal_roll, optimal_payoff)
     }
-    /// Calculate the rating when in state `state` and rolling `dice_rolled` # of dice
+    /// Calculate the payoff when in state `state` and rolling `dice_rolled` # of dice
     ///
     /// # Panics
     ///
-    /// This presupposes that the terminal states have already been solved, and that all ratings with a higher order have already been calculated. Will panic if this invariant is not met.
+    /// This presupposes that the terminal states have already been solved, and that all payoffs with a higher order have already been calculated. Will panic if this invariant is not met.
     #[must_use]
-    pub fn calc_normal_rating(&self, state: State, dice_rolled: u32) -> f64 {
+    pub fn calc_normal_payoff(&self, state: State, dice_rolled: u32) -> f64 {
         if dice_rolled == 0 {
             let terminal_state = State::new(state.queued(), state.active(), true);
             return -self.policy.get(&terminal_state).payoff;
@@ -291,8 +293,8 @@ impl GreedSolver {
                 let probability: f64 =
                     self.pmfs[dice_rolled as usize][(dice_total - dice_rolled) as usize];
                 let state = State::new(state.queued(), state.active() + dice_total, false);
-                let rating: f64 = -self.policy.get(&state).payoff;
-                acc + probability * rating
+                let payoff: f64 = -self.policy.get(&state).payoff;
+                acc + probability * payoff
             } else {
                 acc
             }
@@ -310,8 +312,8 @@ impl GreedSolver {
         let mut writer = Writer::from_path(path)?;
 
         // Write headers
-        writer.serialize(("active", "queued", "last", "n", "rating"))?;
-        for (state, action) in self.policy.clone() {
+        writer.serialize(("active", "queued", "last", "n", "payoff"))?;
+        for (state, action) in self.policy.iter() {
             writer.serialize((
                 state.active(),
                 state.queued(),
@@ -334,7 +336,7 @@ impl GreedSolver {
         // terminal states
         for (state, action) in terminal_states {
             println!(
-                "({}, {}, terminal) => (dice: #{}, rating: {})",
+                "({}, {}, terminal) => (dice: #{}, payoff: {})",
                 state.active(),
                 state.queued(),
                 action.n,
@@ -345,7 +347,7 @@ impl GreedSolver {
         // normal states
         for (state, action) in normal_states {
             println!(
-                "({}, {}, normal) => (dice: #{}, rating: {})",
+                "({}, {}, normal) => (dice: #{}, payoff: {})",
                 state.active(),
                 state.queued(),
                 action.n,

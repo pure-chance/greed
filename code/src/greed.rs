@@ -14,14 +14,14 @@ const BANNER: &str = r#"
  ╚═════╝ ╚═╝  ╚═╝╚══════╝╚══════╝╚═════╝"#;
 
 #[derive(Debug, Copy, Clone, Default)]
-pub struct Configuration {
+pub struct Ruleset {
     /// Maximum score allowed.
     max: u32,
     /// The # of sides on each dice.
     sides: u32,
 }
 
-impl Configuration {
+impl Ruleset {
     #[must_use]
     pub fn new(max: u32, sides: u32) -> Self {
         Self { max, sides }
@@ -83,7 +83,7 @@ impl State {
 /// Whichever player has the highest (non-bust) score wins. If both players have the same score, the game is a draw.
 pub struct Greed {
     rng: ThreadRng,
-    configuration: Configuration,
+    ruleset: Ruleset,
     players: (String, String),
     state: State,
     turn: u32,
@@ -96,7 +96,7 @@ impl Greed {
 
         Self {
             rng: ThreadRng::default(),
-            configuration: Configuration::new(max, sides),
+            ruleset: Ruleset::new(max, sides),
             players: (players.0.to_string(), players.1.to_string()),
             state: State::new(0, 0, false),
             turn: 0,
@@ -126,7 +126,7 @@ impl Greed {
         println!("{pad}final results", pad = " ".repeat((WIDTH - 13) / 2));
         println!("{}", "=".repeat(WIDTH));
 
-        let winners: &[&String] = if self.state.queued() > self.configuration.max {
+        let winners: &[&String] = if self.state.queued() > self.ruleset.max {
             if self.turn % 2 == 0 {
                 println!(
                     "{}: {}, {}: {}",
@@ -222,7 +222,7 @@ impl Greed {
         let sum = (0..n).fold(0, |acc, _| {
             acc + self
                 .rng
-                .sample(Uniform::new(1, self.configuration.sides).unwrap())
+                .sample(Uniform::new(1, self.ruleset.sides).unwrap())
         });
         self.turn += 1;
         if self.state.last {
@@ -231,7 +231,7 @@ impl Greed {
             return true;
         }
         self.state = State::new(self.state.queued(), self.state.active() + sum, n == 0);
-        if self.state.queued() > self.configuration.max() {
+        if self.state.queued() > self.ruleset.max() {
             self.results();
             return true;
         }

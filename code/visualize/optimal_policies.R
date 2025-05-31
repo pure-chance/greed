@@ -12,7 +12,7 @@ payoff_colors <- scale_fill_gradient2(low = "red", mid = "white", high = "blue",
 # n: white (zero) -> blue (large)
 n_colors <- scale_fill_gradient(low = "white", high = "blue")
 
-terminal_payoffs <- ggplot(terminal_states, aes(x = active, y = queued, fill = rating)) +
+terminal_payoffs <- ggplot(terminal_states, aes(x = active, y = queued, fill = payoff)) +
     geom_tile() +
     payoff_colors +
     labs(
@@ -22,7 +22,7 @@ terminal_payoffs <- ggplot(terminal_states, aes(x = active, y = queued, fill = r
         fill = "Payoff"
     )
 
-normal_payoffs <- ggplot(normal_states, aes(x = active, y = queued, fill = rating)) +
+normal_payoffs <- ggplot(normal_states, aes(x = active, y = queued, fill = payoff)) +
     geom_tile() +
     payoff_colors +
     labs(
@@ -52,7 +52,7 @@ normal_n <- ggplot(normal_states, aes(x = active, y = queued, fill = n)) +
         fill = "Roll count"
     )
 
-ggsave("terminal_payoffs.svg", width = 10, height = 10, terminal_payoffs)
-ggsave("normal_payoffs.svg", width = 10, height = 10, normal_payoffs)
-ggsave("terminal_n.svg", width = 10, height = 10, terminal_n)
-ggsave("normal_n.svg", width = 10, height = 10, normal_n)
+ggsave("terminal_payoffs.png", width = 10, height = 10, terminal_payoffs)
+ggsave("normal_payoffs.png", width = 10, height = 10, normal_payoffs)
+ggsave("terminal_n.png", width = 10, height = 10, terminal_n)
+ggsave("normal_n.png", width = 10, height = 10, normal_n)
