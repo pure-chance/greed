@@ -1,7 +1,9 @@
 use std::cmp::Ordering;
+use std::process::Command;
 
 use csv::Writer;
 use rayon::prelude::*;
+use tempfile::NamedTempFile;
 
 use crate::greed::{Ruleset, State};
 use crate::pmf::fft_convolve;
@@ -325,30 +327,8 @@ impl GreedSolver {
 }
 
 impl GreedSolver {
-    /// Write the solver's policy to a CSV file
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the CSV file cannot be written to.
-    pub fn csv(&self, path: &str) -> Result<(), csv::Error> {
-        let mut writer = Writer::from_path(path)?;
-
-        // Write headers
-        writer.serialize(("active", "queued", "last", "n", "payoff"))?;
-        for (state, action) in self.policy.iter() {
-            writer.serialize((
-                state.active(),
-                state.queued(),
-                state.last(),
-                action.n,
-                action.payoff,
-            ))?;
-        }
-        writer.flush()?;
-        Ok(())
-    }
     /// Write the solver's policy to a human-readable format
-    pub fn display(&self) {
+    pub fn stdout(&self) {
         let mut state_action_pairs: Vec<_> = self.policy.clone().iter().collect();
         state_action_pairs.sort_by_key(|(state, _)| (state.last(), state.active(), state.queued()));
 
@@ -377,5 +357,71 @@ impl GreedSolver {
                 action.payoff
             );
         }
+    }
+    /// Write the solver's policy to a CSV file
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the CSV file cannot be written to.
+    pub fn csv(&self, path: &str) -> Result<(), csv::Error> {
+        let mut writer = Writer::from_path(path)?;
+
+        // Write headers
+        writer.serialize(("active", "queued", "last", "n", "payoff"))?;
+        for (state, action) in self.policy.iter() {
+            writer.serialize((
+                state.active(),
+                state.queued(),
+                state.last(),
+                action.n,
+                action.payoff,
+            ))?;
+        }
+        writer.flush()?;
+        Ok(())
+    }
+    /// Generate PNG visualizations using R script
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the R script execution fails.
+    pub fn png(&self) -> Result<(), Box<dyn std::error::Error>> {
+        // Create temporary CSV file
+        let temp_file = NamedTempFile::new()?;
+        let temp_path = temp_file.path();
+
+        // Write CSV data to temporary file
+        let mut writer = Writer::from_path(temp_path)?;
+        writer.serialize(("active", "queued", "last", "n", "payoff"))?;
+        for (state, action) in self.policy.iter() {
+            writer.serialize((
+                state.active(),
+                state.queued(),
+                state.last(),
+                action.n,
+                action.payoff,
+            ))?;
+        }
+        writer.flush()?;
+
+        let output = Command::new("Rscript")
+            .arg("optimal_policies.R")
+            .arg(temp_path)
+            .current_dir("visualize")
+            .output()?;
+
+        if output.status.success() {
+            if !output.stdout.is_empty() {
+                println!("R output: {}", String::from_utf8_lossy(&output.stdout));
+            }
+        } else {
+            eprintln!("R script failed with exit code: {:?}", output.status.code());
+            if !output.stderr.is_empty() {
+                eprintln!("R error: {}", String::from_utf8_lossy(&output.stderr));
+            }
+            return Err("R script execution failed".into());
+        }
+
+        Ok(())
     }
 }

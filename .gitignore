@@ -1,2 +1,4 @@
 code/target
-**/*.csv
+**/visualize/*.csv
+**/visualize/*.png
+.zed

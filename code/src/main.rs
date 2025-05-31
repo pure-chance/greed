@@ -59,9 +59,9 @@ fn main() {
             Arg::new("format")
                 .short('f')
                 .long("format")
-                .value_parser(["stdout", "csv"])
-                .default_value("stdout")
-                .help("Output format: stdout or csv"),
+                .value_parser(["stdout", "csv", "png"])
+                .default_value("png")
+                .help("Output format"),
         );
 
     let cli = Command::new("greed").subcommand(play).subcommand(solve);
@@ -86,16 +86,27 @@ fn main() {
             greed_solver.solve();
 
             match format {
-                "stdout" => greed_solver.display(),
-                "csv" => greed_solver
-                    .csv(&format!("visualize/greed_{}_{}.csv", max, sides))
-                    .unwrap(),
+                "stdout" => greed_solver.stdout(),
+                "csv" => {
+                    let csv_filename = format!("visualize/greed_{}_{}.csv", max, sides);
+                    if let Err(e) = greed_solver.csv(&csv_filename) {
+                        eprintln!("Failed to write CSV file: {}", e);
+                    }
+                }
+                "png" => {
+                    if let Err(e) = greed_solver.png() {
+                        eprintln!("Failed to generate PNG: {}", e);
+                        eprintln!("Make sure R is installed and 'Rscript' is in your PATH");
+                    }
+                }
                 _ => unreachable!(),
             }
         }
         None => {}
         Some(_) => {
-            unreachable!("Clap will short-circuit with `error: unrecognized subcommand: [subcommand]` if a subcommand is not recognized")
+            unreachable!(
+                "Clap will short-circuit with `error: unrecognized subcommand: [subcommand]` if a subcommand is not recognized"
+            )
         }
     }
 }

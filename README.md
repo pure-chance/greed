@@ -62,22 +62,23 @@ Alice: 100, Blair: 104
 Alice wins!
 ```
 
-### Solving
+### Solving & Visualizing
 
 ```sh
 cd code
 
 # generates a (mostly) human readable report
 cargo run --release -- solve --max 100 --sides 6 --format stdout
+
 # generates csv file `visualize/greed_[max]_[sides].csv`
 cargo run --release -- solve --max 100 --sides 6 --format csv
-```
 
-### Visualizing
-
-```sh
-cd code/visualize
-Rscript heatmaps.R greed_100_6.csv # or whatever the path is
+# generates png files [default]
+# - `terminal_n.png`
+# - `terminal_payoffs.png`
+# - `normal_n.png`
+# - `normal_payoffs.png`
+cargo run --release -- solve --max 100 --sides 6 --format png
 ```
 
 | | **Terminal** | **Normal** |
