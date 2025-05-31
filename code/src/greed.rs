@@ -5,13 +5,13 @@ use colored::Colorize;
 use rand::{distr::Uniform, prelude::*};
 
 const WIDTH: usize = 41; // based on banner width
-const BANNER: &str = r#"
+const BANNER: &str = r"
  ██████╗ ██████╗ ███████╗███████╗██████╗
 ██╔════╝ ██╔══██╗██╔════╝██╔════╝██╔══██╗
 ██║  ███╗██████╔╝█████╗  █████╗  ██║  ██║
 ██║   ██║██╔══██╗██╔══╝  ██╔══╝  ██║  ██║
 ╚██████╔╝██║  ██║███████╗███████╗██████╔╝
- ╚═════╝ ╚═╝  ╚═╝╚══════╝╚══════╝╚═════╝"#;
+ ╚═════╝ ╚═╝  ╚═╝╚══════╝╚══════╝╚═════╝";
 
 #[derive(Debug, Copy, Clone, Default)]
 pub struct Ruleset {
