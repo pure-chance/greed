@@ -82,6 +82,32 @@ impl Policy {
     }
 }
 
+/// A lookup table for the probability mass function of the sum of dice rolls
+#[derive(Debug, Clone, Default)]
+pub struct PMFLookup(Vec<Vec<f64>>);
+
+impl PMFLookup {
+    /// Creates a new `PMFLookup` table for the given maximum score and number of sides on the dice
+    #[must_use]
+    pub fn precompute(max: u32, sides: u32) -> Self {
+        let max_n = (2 * max / (sides + 1) + 1).max(max + 1);
+
+        let mut pmfs: Vec<Vec<f64>> = Vec::with_capacity(max as usize + 1);
+        let dice_pmf = vec![1.0 / f64::from(sides); sides as usize];
+
+        pmfs.push(vec![1.0]);
+        for n in 1..=max_n {
+            pmfs.push(fft_convolve(&pmfs[(n - 1) as usize], &dice_pmf));
+        }
+        Self(pmfs)
+    }
+    /// Lookup the pmf for a given # of dice `n` and sum `total`
+    #[must_use]
+    pub fn lookup(&self, n: u32, total: u32) -> f64 {
+        self.0[n as usize][(total - n) as usize]
+    }
+}
+
 /// A solver for Greed
 ///
 /// A game of Greed is a two-player dice game where players take turns rolling dice and accumulating points.
@@ -115,7 +141,7 @@ pub struct GreedSolver {
     /// The solvers policy (state-action pairs)
     policy: Policy,
     /// Precomputed PMFs
-    pmfs: Vec<Vec<f64>>,
+    pmfs: PMFLookup,
 }
 
 impl GreedSolver {
@@ -125,24 +151,21 @@ impl GreedSolver {
         GreedSolver {
             ruleset: Ruleset::new(max, sides),
             policy: Policy::new(max),
-            pmfs: Self::precompute_pmfs(max, sides),
+            pmfs: PMFLookup::default(),
         }
     }
-    #[must_use]
-    pub fn precompute_pmfs(max: u32, sides: u32) -> Vec<Vec<f64>> {
-        let max_n = (2 * max / (sides + 1) + 1).max(max + 1);
-
-        let mut pmfs: Vec<Vec<f64>> = Vec::with_capacity(max as usize + 1);
-        let dice_pmf = vec![1.0 / f64::from(sides); sides as usize];
-
-        pmfs.push(vec![1.0]);
-        for n in 1..=max_n {
-            pmfs.push(fft_convolve(&pmfs[(n - 1) as usize], &dice_pmf));
-        }
-        pmfs
+    /// Precompute all PMFs
+    ///
+    /// # Optimizations
+    ///
+    /// - For a given ruleset, there is an upper bound on the number of dice needed to check. So compute the PMF's for each n, and store them in the solver for O(1) lookup.
+    pub fn precompute_pmfs(&mut self) {
+        self.pmfs = PMFLookup::precompute(self.max(), self.sides());
     }
     /// Solve the game
     pub fn solve(&mut self) {
+        // Precompute all PMFs
+        self.precompute_pmfs();
         // Solve all the terminal states (this must be done first).
         self.solve_terminal_states();
         // Solve all the normal states (in the correct order).
@@ -212,7 +235,7 @@ impl GreedSolver {
         }
 
         (dice_rolled..=self.sides() * dice_rolled).fold(0.0, |acc, dice_total| {
-            let p_for_total = self.pmfs[dice_rolled as usize][(dice_total - dice_rolled) as usize];
+            let p_for_total = self.pmfs.lookup(dice_rolled, dice_total);
             match (state.active() + dice_total).cmp(&state.queued()) {
                 Ordering::Greater if state.active() + dice_total <= self.max() => acc + p_for_total,
                 Ordering::Less | Ordering::Greater => acc - p_for_total, // lower score or bust
@@ -280,8 +303,7 @@ impl GreedSolver {
         }
         (dice_rolled..=self.sides() * dice_rolled).fold(0.0, |acc, dice_total| {
             if state.active() + dice_total < self.max() {
-                let probability: f64 =
-                    self.pmfs[dice_rolled as usize][(dice_total - dice_rolled) as usize];
+                let probability: f64 = self.pmfs.lookup(dice_rolled, dice_total);
                 let state = State::new(state.queued(), state.active() + dice_total, false);
                 let payoff: f64 = -self.policy.get(&state).payoff;
                 acc + probability * payoff
@@ -317,11 +339,12 @@ impl GreedSolver {
     }
     /// Write the solver's policy to a human-readable format
     pub fn display(&self) {
-        let mut all_states: Vec<_> = self.policy.iter().collect();
-        all_states.sort_by_key(|(state, _)| (state.last(), state.active(), state.queued()));
+        let mut state_action_pairs: Vec<_> = self.policy.clone().iter().collect();
+        state_action_pairs.sort_by_key(|(state, _)| (state.last(), state.active(), state.queued()));
 
-        let (terminal_states, normal_states): (Vec<_>, Vec<_>) =
-            all_states.into_iter().partition(|(state, _)| state.last());
+        let (terminal_states, normal_states): (Vec<_>, Vec<_>) = state_action_pairs
+            .into_iter()
+            .partition(|(state, _)| state.last());
 
         // terminal states
         for (state, action) in terminal_states {
