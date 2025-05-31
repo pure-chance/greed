@@ -32,7 +32,7 @@ fn main() {
             Arg::new("p2")
                 .value_name("P2")
                 .help("Player 2")
-                .default_value("Bliar"),
+                .default_value("Blair"),
         );
 
     let solve = Command::new("solve")

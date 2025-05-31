@@ -66,8 +66,7 @@ impl Policy {
             .enumerate()
             .map(move |(placement, action)| {
                 let placement = u32::try_from(placement).expect("state space too big");
-                let last_offset =
-                    u32::try_from((self.max + 1) * (self.max + 1)).expect("state space too big");
+                let last_offset = (self.max + 1) * (self.max + 1);
                 let (active, queued, last) = if placement >= last_offset {
                     let adjusted_placement = placement - last_offset;
                     let active = adjusted_placement % (self.max + 1);
@@ -130,7 +129,7 @@ impl PMFLookup {
 ///
 /// In the second stage, the solver calculates the optimal moves moves in the rest of the states (normal states). This is done via dynamic programming.
 ///
-/// Starting with the maximum `turn + next` score, the only option (other than going bust) is to roll 0, thus its possible to calculate the optimal action by looking up the action for the corresponding terminal state.
+/// Starting with the maximum `turn + next` score, the only option (other than going bust) is to roll 0, thus it's possible to calculate the optimal action by looking up the action for the corresponding terminal state.
 ///
 /// Moving to the second maximum `turn + next` score, the only options are to either end up in the previously computed normal state, or the corresponding terminal state.
 ///
@@ -220,7 +219,9 @@ impl GreedSolver {
 
         loop {
             let current_payoff = self.calc_terminal_payoff(state, dice_rolled);
-            if optimal_action.payoff - current_payoff >= 10e-4 {
+            if optimal_action.payoff - current_payoff >= 10e-2
+                || dice_rolled >= (2 * self.max() / (self.sides() + 1) + 1).max(self.max() + 1)
+            {
                 break;
             }
             if current_payoff > optimal_action.payoff {

@@ -7,7 +7,7 @@
   title: [A Policy Optimization of Greed],
   authors: ("Chance Addis",),
   abstract: [
-    The game of Greed is a stochastic, zero-sum game that tests a player's risk-taking, similarly to blackjack. We analyze _Greed_ through the lens of game theory by modeling it as a Markov Decision Process (MDP). This framework allows us to compute an optimal policy that maps each game state to the action that maximizes a player’s expected chance of winning. In addition to presenting the theoretical formulation, we explore efficient algorithms for computing this policy. By leveraging dynamic programming, state pruning, and compact policy representations, we substantially reduce computational overhead and enable fast, scalable analysis across large state spaces.
+    The game of Greed is a stochastic, zero-sum game that tests a player's risk-taking, similarly to blackjack. We analyze Greed through the lens of game theory by modeling it as a Markov Decision Process (MDP). This framework allows us to compute an optimal policy that maps each game state to the action that maximizes a player’s expected chance of winning. In addition to presenting the theoretical formulation, we explore efficient algorithms for computing this policy. By leveraging dynamic programming, state pruning, and compact policy representations, we substantially reduce computational overhead and enable fast, scalable analysis across large state spaces.
   ],
   references: bibliography("references.yml", title: "References", full: true)
 )
@@ -37,27 +37,27 @@ With the ruleset defined, the game can begin.
 #definition(title: "Greed")[
   Let the ruleset for this game be $(M, s)$.
 
-  The game is played between two players, *Alice* and *Bliar*. Each player begins with an initial score of $0$. Let $a, b in NN_0$ denote the scores of Alice and Bliar, respectively.
+  The game is played between two players, *Alice* and *Blair*. Each player begins with an initial score of $0$. Let $a, b in NN_0$ denote the scores of Alice and Blair, respectively.
 
   A starting player is chosen, typically by having both players roll a die and selecting the player with the higher result (re-rolling in case of a tie).
 
   On a player’s turn (e.g., Alice’s), they choose a number $n in NN_0$ of $s$-sided dice to roll:
 
   - If $n > 0$, then $n$ dice are rolled, and the resulting sum is added to the player’s score. If the score exceeds $M$, the player _busts_ and immediately loses.
-  - If $n = 0$, the player _stands_, triggering the _final round_: the opponent (Bliar) takes exactly one final turn under the same rules (choosing any $n in NN_0$).
+  - If $n = 0$, the player _stands_, triggering the _final round_: the opponent (Blair) takes exactly one final turn under the same rules (choosing any $n in NN_0$).
 
   The game ends when a player busts or when both players have stood. The result is determined as follows:
   - If one player busts, the other wins.
   - If both players stand, the winner is the player with the higher score.
   - If both players have equal scores, the game is a tie.
 
-  The outcome can be represented as a zero-sum outcome function $O: {"Alice", "Bliar"} -> {-1, 0, 1}$, given by:
+  The outcome can be represented as a zero-sum outcome function $O: {"Alice", "Blair"} -> {-1, 0, 1}$, given by:
 
   #table(
     columns: 3,
-    table.header[][Alice’s Payoff][Bliar’s Payoff],
+    table.header[][Alice’s Payoff][Blair’s Payoff],
     [Alice wins], [$+1$], [$-1$],
-    [Bliar wins], [$-1$], [$+1$],
+    [Blair wins], [$-1$], [$+1$],
     [Tie], [$0$], [$0$],
   )
 ]
@@ -65,13 +65,13 @@ With the ruleset defined, the game can begin.
 = Mathematical Framework <framework>
 
 #definition(title: "State")[
-  A _state_ $S$ of Greed is defined by the 4-tuple ($a$, $b$, $t$, $l$), where $a <= M$ is Alice's score, $b <= M$ is Bliar's score, $t in {"Alice", "Bliar"}$ indicates who's turn it is, and $l in {"true", "false"}$ is a boolean that indicates whether the game is in the final round.
+  A _state_ $S$ of Greed is defined by the 4-tuple ($a$, $b$, $t$, $l$), where $a <= M$ is Alice's score, $b <= M$ is Blair's score, $t in {"Alice", "Blair"}$ indicates whose turn it is, and $l in {"true", "false"}$ is a boolean that indicates whether the game is in the final round.
 ]
 
-For the purposes of computing optimal moves, the 3-tuple ($a$, $q$, $l$) is equivalent to the 4-tuple ($a$, $b$, $t$, $l$). The difference between the two is that the 3-tuple does not include the turn indicator $t$, which is not relevant for computing optimal moves. $a$ is just the score of the player whose turn it is, and $q$ is just the score of the player whose turn is up next. Therefore from now on, we will use this 3-tuple to represent the state, indicating which player's turn it is.
+For the purposes of computing optimal moves, the 3-tuple ($a$, $q$, $l$) is equivalent to the 4-tuple ($a$, $b$, $t$, $l$). The difference between the two is that the 3-tuple does not include the turn indicator $t$, which is not relevant for computing optimal moves. $a$ is just the score of the player whose turn it is, and $q$ is just the score of the player whose turn is up next. Therefore, from now on, we will use this 3-tuple to represent the state, indicating whose turn it is.
 
 #example[
-  Suppose Alice is up, and has a score of $85$, Bliar is up next, with a score of $70$, and it is not the final round. Then the state is $(85, 70, "false")$. This is equivalent to the 4-tuple $(85, 70, "Alice", "false")$.
+  Suppose Alice is up, and has a score of $85$. Blair is up next, with a score of $70$. It is not the final round. Then the state is $(85, 70, "false")$. This is equivalent to the 4-tuple $(85, 70, "Alice", "false")$.
 ]
 
 In addition to a state, it's also necessary to model the action space $A$ of Greed.
@@ -94,7 +94,7 @@ Lastly, we define a transition function, which models the probability of transit
   $ where $bold(p)_n (k)$ denotes the probability that the sum of $n$ dice equals $k$.
 ]
 
-Notice that many possible invalid states exist, but have probability $0.0$ either because $bold(p)_n = 0.0$ (e.g., because $k < 0$), or because the transition violates some other rule like $l = "T", l' = "F"$ or $a' != q$.
+Notice that many possible invalid states exist but have probability $0.0$ either because $bold(p)_n = 0.0$ (e.g., because $k < 0$), or because the transition violates some other rule like $l = "T", l' = "F"$ or $a' != q$.
 
 A game of greed is defined by its transition function $f: S times A -> [0, 1]$. This is a result of the nature of greed as a Markov Decision Process (MDP), which is also defined by the transition function. Because Greed is a MDP, it inherits all the properties of an MDP, including its memoryless property, and therefore its ability to be solved via dynamic programming, which we'll prove and apply in @policy.
 
@@ -118,7 +118,7 @@ For a single die: $
 $
 
 For $n > 1$ dice, we compute recursively via convolution: $
-  bold(p)(t | n, s) = sum_(k=1)^s bold(p)(t - k | n - 1, s) dot bold(p)(k | 1, s)
+  bold(p)(t | n, s) = sum_(k=1)^s bold(p)(t - k | n - 1, s) dot bold(p)(k | 1, s).
 $
 
 = Policy Solver <policy>
@@ -162,7 +162,7 @@ Practically, this means we memoize the results of previously computed states to 
 
 == Terminal States
 
-For terminal states, the problem is simple, find some $n$ that maximizes the probability that your sum $t$ will yield $a + t in [q, M]$. More precisely, for a game state $(a, q, T)$ we optimize the expected payoff
+For terminal states, the problem is simple: find some $n$ that maximizes the probability that your sum $t$ will yield $a + t in [q, M]$. More precisely, for a game state $(a, q, T)$ we optimize the expected payoff
 
 #equation[$
   n_star := max_(n in [0, oo)) sum_(t = n)^(s n) cases(
@@ -181,16 +181,16 @@ Of course, it's impossible to test every possible $n$ in practice. Luckily, ther
 #proof[
   Note that the expected value of $n$ die with $s$ sides is $(n (s + 1)) / 2$. Thus $n_("max")$ is the point where the mean of $n$ exceeds the max score.
 
-  The pmf of the sum of the dice is unimodal. Consider any following state where $a + t <= M$. For any two $n$ such that $n_("max") <= n_1 < n_2$, the probability of being at that score is strictly decreasing between $n_1$ and $n_2$. This occurs at every score that yields a positive payoff. Therefore the sum is strictly decreasing between $n_1$ and $n_2$.
+  The pmf of the sum of the dice is unimodal. Consider any following state where $a + t <= M$. For any two $n$ such that $n_("max") <= n_1 < n_2$, the probability of being at that score is strictly decreasing between $n_1$ and $n_2$. This occurs at every score that yields a positive payoff. Therefore, the sum is strictly decreasing between $n_1$ and $n_2$.
 
   This means that for any $n >= n_("max")$, the payoff will monotonically decrease. Therefore $n_star$ must be less than or equal to $n_("max")$.
 ]
 
-This is a reasonable upper bound. But we can actually do better. Running simulations on the a wide set of n, we find that the payoff function is unimodal with respect to $n$. This means that once the payoff starts decreasing, we can stop testing further $n$ and take the maximum.
+This is a reasonable upper bound. But we can actually do better. Running simulations on a wide set of n, we find that the payoff function is unimodal with respect to $n$. This means that once the payoff starts decreasing, we can stop testing further $n$ and take the maximum.
 
 $ --- $
 
-Its possible to leverage previous knowledge to narrow the score of $n$ to test even more.
+It's possible to leverage previous knowledge to narrow the score of $n$ to test even more.
 
 Let $s = (a, q, T), s' = (a, q + t, T)$ where $t > 0$. Let $n_star$ be the optimal number of dice to roll for state $s$, and $n^'_star$ be the optimal number of dice to roll for state $s'$. It's guaranteed that $n^'_star <= n_star$. Similarly, for $s = (a, q, T), s' = (a - t, q, T)$, it's also true that $n^'_star <= n_star$.
 
@@ -202,7 +202,7 @@ For normal states, optimization is more complex, as it becomes necessary to cons
 
 Consider the max score $(M, M, F)$. In this state, the active player is forced to roll $0$ dice, or otherwise lose. Thus the _only_ potentially non-negative payoff is to roll $0$ dice; this is the optimal policy. The payoff for the opponent is whatever the payoff of the terminal state $(M, M, T)$. Since this is a zero-sum game, our score is the negative of the opponent's score.
 
-Now consider two states $(M - 1, M, F), (M, M - 1, F)$. In these states, the only possible next states are busts, $(M, M, F)$, or terminal states. Therefore the payoffs of the next states are all previously computed. Thus the optimal policy for a state $s = (a, q, F)$ can be computed by
+Now consider two states $(M - 1, M, F), (M, M - 1, F)$. In these states, the only possible next states are busts, $(M, M, F)$, or terminal states. Therefore, the payoffs of the next states are all previously computed. Thus the optimal policy for a state $s = (a, q, F)$ can be computed by
 
 #equation[$
   n_star := max_(n in NN) sum_(t = n)^(s) bold(p)(t | n, s) dot.op Q(s, a)
@@ -210,29 +210,29 @@ $]
 
 This continues until $(0, 0, F)$, at which point all normal states have been computed.
 
-Like with terminal states, it's not possible to try all all possible $n$, but luckily @prop:upper-bound-actions works for normal states as well. There is no massive tricks here _as of yet_, but it is possible to compute certain states (e.g., $(M - 1, M, F), (M, M - 1, F)$) in parallel since they will never overlap.
+Like with terminal states, it's not possible to try all possible $n$, but luckily @prop:upper-bound-actions works for normal states as well. There is no massive tricks here _as of yet_, but it is possible to compute certain states (e.g., $(M - 1, M, F), (M, M - 1, F)$) in parallel since they will never overlap.
 
 = Optimal Policy Analysis <analysis>
 
 With the theoretical framework established, we implemented the dynamic programming algorithm to compute optimal policies for Greed across various rulesets. Our analysis reveals fascinating strategic patterns that emerge from the interplay between risk and reward in this deceptively simple game.
 
-The following visualizations present the computed optimal policies and their associated payoffs for both terminal and normal game states. These visualizations provide many insights into the strategic principles of Greed, and what those principles say about the game itself.
+The following visualizations present the computed optimal policies and their associated payoffs for both terminal and normal game states. These visualizations provide many insights into the strategic principles of Greed and what those principles say about the game itself.
 
 #let terminal-payoffs = figure(
   image("assets/terminal_payoffs.svg"),
-  caption: [Optimal payoffs for terminal states]
+  caption: [Optimal payoffs for terminal states.]
 )
 #let normal-payoffs = figure(
   image("assets/normal_payoffs.svg"),
-  caption: [Optimal payoffs for normal states]
+  caption: [Optimal payoffs for normal states.]
 )
 #let terminal-n = figure(
   image("assets/terminal_n.svg"),
-  caption: [Optimal die to throw for terminal states]
+  caption: [Optimal die to throw for terminal states.]
 )
 #let normal-n = figure(
   image("assets/normal_n.svg"),
-  caption: [Optimal die to throw for normal states]
+  caption: [Optimal die to throw for normal states.]
 )
 
 #place(auto, scope: "parent", float: true)[
@@ -248,17 +248,19 @@ The following visualizations present the computed optimal policies and their ass
 
 == A Game of Chicken
 
-Looking at @fig:terminal-payoffs, its clear that you should absolutely not stop rolling dice if you are not already very close to the max score, because otherwise the opponent can easily catch up and win. The most notable feature is the band of balanced endgames (the white band), which follows a square-root function. Relating the terminal payoffs to the normal states, notice that the (bid) red area over the white band is the inverse of the (good) blue area for the normal payoffs. This is expected, since normal states in the positive region will lead the opponent to the corresponding negative region in the terminal states.
+Looking at @fig:terminal-payoffs, it's clear that you should absolutely not stop rolling dice if you are not already very close to the max score, because otherwise the opponent can easily catch up and win. The most notable feature is the band of balanced endgames (the white band), which follows a square-root function. Relating the terminal payoffs to the normal states, notice that the (bid) red area over the white band is the inverse of the (good) blue area for the normal payoffs. This is expected, since normal states in the positive region will lead the opponent to the corresponding negative region in the terminal states.
 
 Another detail worth mentioning is the 4 white tiles at $(100, 100, F), (99, 99, F), ..., (96, 96, F)$ These states are ties, because rolling even one die will result in a bust at least half the time.
 
-== A balanced game
+== A Balanced Game
 
 Looking instead at the normal states, notice that the payoffs for normal states are very balanced. Unless you are in an extreme position, the game is a deadlock. Adjacent to all this, notice that the blue band for normal states corresponds to the white band on the normal rolls, signifying that when you have even a little advantage, you should aim to end the game on that turn. This implies that the game is very endgame focused, and the aim is to gain an advantage and end the game is fast as possible.
 
-== Optimal die Oddities
+== Optimal Die Oddities
 
-From an optimal die perspective, we see linear gradients, which is intuitive. After all, the goal is to either get as close to the maximum (for normal states) or between the opponent and the max (for terminal states). What's interesting are the edges, which tend to have odd values. In the terminal states, there is this odd aliasing effect on the edge between standing or rolling. This is likely an artifact of determining the optimal die to throw. For cases where the active player is behind, if it's possible for them to roll some $n$ dice and always land between the opponent and the max, they should do so. But if its not possible, then they have to compromise, which appears to cause they to roll more dice than they would if they have some perfect $n$ that guarantees a win.
+From an optimal die perspective, we see linear gradients, which is intuitive. After all, the goal is to either get as close to the maximum (for normal states) or between the opponent and the max (for terminal states). What's interesting are the edges, which tend to have odd values. In the terminal states with high $n$, we get some bizarre artifacts, likely a result of compounding floating-point precision errors.
+
+There are also some odd $n$ values, jumping back and forth between neighboring $n$. This is in part caused by the interaction of the sides and fixed maximum. However, it is likely also in part floating-point error or even (maybe) implementation oversights.
 
 = Conclusion <conclusion>
 
@@ -266,4 +268,4 @@ Our analysis revealed that Greed is fundamentally a game of careful endgame posi
 
 Future work could explore extensions to multiplayer variants or investigate the impact of different scoring rules on optimal strategies. There is also, I suspect, more room for performance improvements. However, the current improvements are enough for the goals of this project.
 
-Greed is ultimately a simple game, but one which illuminates the patterns and complexity hidden within its mechanics. Like Conway's game of life, it's a game of simple rules that lead to complex behavior.
+Greed is ultimately a simple game, but one that illuminates the patterns and complexity hidden within its mechanics. Like Conway's Game of Life, it's a game of simple rules that lead to complex behavior.

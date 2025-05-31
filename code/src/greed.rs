@@ -106,7 +106,7 @@ impl Greed {
         let ruleset = format!("max score: {max}, sides: {sides}");
         let padding = (WIDTH.saturating_sub(ruleset.len())) / 2;
 
-        println!("{}", BANNER);
+        println!("{BANNER}");
         println!("{pad}{ruleset}", pad = " ".repeat(padding));
     }
     fn game_state(&self) {
@@ -237,6 +237,11 @@ impl Greed {
         }
         false
     }
+    /// Play a game of Greed
+    ///
+    /// # Panics
+    ///
+    /// Panics if io fails to read input.
     pub fn play(max: u32, sides: u32, players: (&str, &str)) {
         let mut greed = Greed::new(max, sides, players);
 

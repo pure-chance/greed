@@ -24,8 +24,8 @@ Play continues back and forth until one player decides to roll 0 dice, signaling
 ```sh
 cd code
 
-# play a game of greed with player 1 = Alice, player 2 = Bliar
-cargo run --release -- play --max 100 --sides 6 Alice Bliar
+# play a game of greed with player 1 = Alice, player 2 = Blair
+cargo run --release -- play --max 100 --sides 6 Alice Blair
 ```
 
 ```
@@ -37,28 +37,28 @@ cargo run --release -- play --max 100 --sides 6 Alice Bliar
  ╚═════╝ ╚═╝  ╚═╝╚══════╝╚══════╝╚═════╝
         max score: 100, sides: 6
 
-round 0: Alice: 0, Bliar: 0, last: false
+round 0: Alice: 0, Blair: 0, last: false
 Alice rolls: 25
 
-round 1: Bliar: 0, Alice: 74, last: false
-Bliar rolls: 25
+round 1: Blair: 0, Alice: 74, last: false
+Blair rolls: 25
 
-round 2: Alice: 74, Bliar: 89, last: false
+round 2: Alice: 74, Blair: 89, last: false
 Alice rolls: 5
 
-round 3: Bliar: 89, Alice: 90, last: false
-Bliar rolls: 2
+round 3: Blair: 89, Alice: 90, last: false
+Blair rolls: 2
 
-round 4: Alice: 90, Bliar: 95, last: false
+round 4: Alice: 90, Blair: 95, last: false
 Alice rolls: 3
 
-round 5: Bliar: 95, Alice: 100, last: false
-Bliar rolls: 2
+round 5: Blair: 95, Alice: 100, last: false
+Blair rolls: 2
 
 =========================================
               final results
 =========================================
-Alice: 100, Bliar: 104
+Alice: 100, Blair: 104
 Alice wins!
 ```
 
