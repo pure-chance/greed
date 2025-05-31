@@ -10,14 +10,14 @@ use crate::pmf::fft_convolve;
 #[derive(Debug, Copy, Clone, Default)]
 pub struct OptimalAction {
     /// Dice to roll
-    n: u16,
+    n: u32,
     /// Rating given a roll of `n` dice.
     payoff: f64,
 }
 
 impl OptimalAction {
     #[must_use]
-    pub fn new(n: u16, rating: f64) -> Self {
+    pub fn new(n: u32, rating: f64) -> Self {
         OptimalAction { n, payoff: rating }
     }
 }
@@ -30,8 +30,8 @@ pub struct Policy {
 
 impl Policy {
     #[must_use]
-    pub fn new(max: u16) -> Self {
-        let size = usize::from(max + 1);
+    pub fn new(max: u32) -> Self {
+        let size = (max + 1) as usize;
         let terminal = vec![vec![OptimalAction::default(); size]; size];
         let normal = vec![vec![OptimalAction::default(); size]; size];
         Self { terminal, normal }
@@ -58,13 +58,13 @@ impl Policy {
         let terminal_iter = self.terminal.iter().enumerate().flat_map(|(i, row)| {
             row.iter()
                 .enumerate()
-                .map(move |(j, &action)| (State::new(i as u16, j as u16, true), action))
+                .map(move |(j, &action)| (State::new(i as u32, j as u32, true), action))
         });
 
         let normal_iter = self.normal.iter().enumerate().flat_map(|(i, row)| {
             row.iter()
                 .enumerate()
-                .map(move |(j, &action)| (State::new(i as u16, j as u16, false), action))
+                .map(move |(j, &action)| (State::new(i as u32, j as u32, false), action))
         });
 
         terminal_iter.chain(normal_iter)
@@ -79,13 +79,13 @@ impl IntoIterator for Policy {
         let terminal_iter = self.terminal.into_iter().enumerate().flat_map(|(i, row)| {
             row.into_iter()
                 .enumerate()
-                .map(move |(j, action)| (State::new(i as u16, j as u16, true), action))
+                .map(move |(j, action)| (State::new(i as u32, j as u32, true), action))
         });
 
         let normal_iter = self.normal.into_iter().enumerate().flat_map(|(i, row)| {
             row.into_iter()
                 .enumerate()
-                .map(move |(j, action)| (State::new(i as u16, j as u16, false), action))
+                .map(move |(j, action)| (State::new(i as u32, j as u32, false), action))
         });
 
         Box::new(terminal_iter.chain(normal_iter))
@@ -131,7 +131,7 @@ pub struct GreedSolver {
 impl GreedSolver {
     /// Create a new `GreedSolver` instance
     #[must_use]
-    pub fn new(max: u16, sides: u16) -> Self {
+    pub fn new(max: u32, sides: u32) -> Self {
         GreedSolver {
             configuration: Configuration::new(max, sides),
             policy: Policy::new(max),
@@ -139,7 +139,7 @@ impl GreedSolver {
         }
     }
     #[must_use]
-    pub fn precompute_pmfs(max: u16, sides: u16) -> Vec<Vec<f64>> {
+    pub fn precompute_pmfs(max: u32, sides: u32) -> Vec<Vec<f64>> {
         let max_n = (2 * max / (sides + 1) + 1).max(max + 1);
 
         let mut pmfs: Vec<Vec<f64>> = Vec::with_capacity(max as usize + 1);
@@ -159,11 +159,11 @@ impl GreedSolver {
         self.solve_normal_states();
     }
     #[must_use]
-    pub fn max(&self) -> u16 {
+    pub fn max(&self) -> u32 {
         self.configuration.max()
     }
     #[must_use]
-    pub fn sides(&self) -> u16 {
+    pub fn sides(&self) -> u32 {
         self.configuration.sides()
     }
 }
@@ -210,7 +210,7 @@ impl GreedSolver {
         optimal_action
     }
     /// Calculate the rating when in state `state` and rolling `dice_rolled` # of dice
-    fn calc_terminal_rating(&self, state: State, dice_rolled: u16) -> f64 {
+    fn calc_terminal_rating(&self, state: State, dice_rolled: u32) -> f64 {
         if dice_rolled == 0 {
             return match state.active().cmp(&state.queued()) {
                 Ordering::Less => -1.0,
@@ -281,7 +281,7 @@ impl GreedSolver {
     ///
     /// This presupposes that the terminal states have already been solved, and that all ratings with a higher order have already been calculated. Will panic if this invariant is not met.
     #[must_use]
-    pub fn calc_normal_rating(&self, state: State, dice_rolled: u16) -> f64 {
+    pub fn calc_normal_rating(&self, state: State, dice_rolled: u32) -> f64 {
         if dice_rolled == 0 {
             let terminal_state = State::new(state.queued(), state.active(), true);
             return -self.policy.get(&terminal_state).payoff;

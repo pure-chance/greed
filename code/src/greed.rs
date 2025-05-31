@@ -16,22 +16,22 @@ const BANNER: &str = r#"
 #[derive(Debug, Copy, Clone, Default)]
 pub struct Configuration {
     /// Maximum score allowed.
-    max: u16,
+    max: u32,
     /// The # of sides on each dice.
-    sides: u16,
+    sides: u32,
 }
 
 impl Configuration {
     #[must_use]
-    pub fn new(max: u16, sides: u16) -> Self {
+    pub fn new(max: u32, sides: u32) -> Self {
         Self { max, sides }
     }
     #[must_use]
-    pub fn max(&self) -> u16 {
+    pub fn max(&self) -> u32 {
         self.max
     }
     #[must_use]
-    pub fn sides(&self) -> u16 {
+    pub fn sides(&self) -> u32 {
         self.sides
     }
 }
@@ -40,16 +40,16 @@ impl Configuration {
 #[derive(Debug, Copy, Clone, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct State {
     /// The score of the player whose turn it is.
-    active: u16,
+    active: u32,
     /// The score of the player whose turn is up next.
-    queued: u16,
+    queued: u32,
     /// Whether this is the last turn of the game.
     last: bool,
 }
 
 impl State {
     #[must_use]
-    pub fn new(active: u16, queued: u16, last: bool) -> Self {
+    pub fn new(active: u32, queued: u32, last: bool) -> Self {
         State {
             active,
             queued,
@@ -57,11 +57,11 @@ impl State {
         }
     }
     #[must_use]
-    pub fn active(&self) -> u16 {
+    pub fn active(&self) -> u32 {
         self.active
     }
     #[must_use]
-    pub fn queued(&self) -> u16 {
+    pub fn queued(&self) -> u32 {
         self.queued
     }
     #[must_use]
@@ -86,12 +86,12 @@ pub struct Greed {
     configuration: Configuration,
     players: (String, String),
     state: State,
-    turn: u16,
+    turn: u32,
 }
 
 impl Greed {
     #[must_use]
-    pub fn new(max: u16, sides: u16, players: (&str, &str)) -> Self {
+    pub fn new(max: u32, sides: u32, players: (&str, &str)) -> Self {
         Self::banner(max, sides);
 
         Self {
@@ -102,7 +102,7 @@ impl Greed {
             turn: 0,
         }
     }
-    fn banner(max: u16, sides: u16) {
+    fn banner(max: u32, sides: u32) {
         let ruleset = format!("max score: {max}, sides: {sides}");
         let padding = (WIDTH.saturating_sub(ruleset.len())) / 2;
 
@@ -204,21 +204,21 @@ impl Greed {
             &self.players.0
         }
     }
-    fn player_0(&self) -> u16 {
+    fn player_0(&self) -> u32 {
         if self.turn % 2 == 0 {
             self.state.active()
         } else {
             self.state.queued()
         }
     }
-    fn player_1(&self) -> u16 {
+    fn player_1(&self) -> u32 {
         if self.turn % 2 == 0 {
             self.state.queued()
         } else {
             self.state.active()
         }
     }
-    fn roll(&mut self, n: u16) -> bool {
+    fn roll(&mut self, n: u32) -> bool {
         let sum = (0..n).fold(0, |acc, _| {
             acc + self
                 .rng
@@ -237,7 +237,7 @@ impl Greed {
         }
         false
     }
-    pub fn play(max: u16, sides: u16, players: (&str, &str)) {
+    pub fn play(max: u32, sides: u32, players: (&str, &str)) {
         let mut greed = Greed::new(max, sides, players);
 
         loop {
@@ -249,7 +249,7 @@ impl Greed {
             print!("{} rolls: ", greed.active_player().green());
             std::io::stdout().flush().unwrap();
             stdin().read_line(&mut input).unwrap();
-            let n = input.trim().parse::<u16>().unwrap();
+            let n = input.trim().parse::<u32>().unwrap();
 
             // Roll dice
             if greed.roll(n) {

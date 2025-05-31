@@ -10,7 +10,7 @@ fn main() {
                 .long("max")
                 .value_name("MAX")
                 .help("Maximum score")
-                .value_parser(clap::value_parser!(u16))
+                .value_parser(clap::value_parser!(u32))
                 .default_value("100"),
         )
         .arg(
@@ -19,7 +19,7 @@ fn main() {
                 .long("sides")
                 .value_name("SIDES")
                 .help("Number of sides on the die")
-                .value_parser(clap::value_parser!(u16))
+                .value_parser(clap::value_parser!(u32))
                 .default_value("6"),
         )
         .arg(
@@ -43,7 +43,7 @@ fn main() {
                 .long("max")
                 .value_name("MAX")
                 .help("Maximum score")
-                .value_parser(clap::value_parser!(u16))
+                .value_parser(clap::value_parser!(u32))
                 .default_value("100"),
         )
         .arg(
@@ -52,7 +52,7 @@ fn main() {
                 .long("sides")
                 .value_name("SIDES")
                 .help("Number of sides on the dice")
-                .value_parser(clap::value_parser!(u16))
+                .value_parser(clap::value_parser!(u32))
                 .default_value("6"),
         )
         .arg(
@@ -70,16 +70,16 @@ fn main() {
 
     match args.subcommand() {
         Some(("play", args)) => {
-            let max = *args.get_one::<u16>("max").unwrap();
-            let sides = *args.get_one::<u16>("sides").unwrap();
+            let max = *args.get_one::<u32>("max").unwrap();
+            let sides = *args.get_one::<u32>("sides").unwrap();
             let p1 = args.get_one::<String>("p1").unwrap().as_str();
             let p2 = args.get_one::<String>("p2").unwrap().as_str();
 
             Greed::play(max, sides, (p1, p2));
         }
         Some(("solve", args)) => {
-            let max = *args.get_one::<u16>("max").unwrap();
-            let sides = *args.get_one::<u16>("sides").unwrap();
+            let max = *args.get_one::<u32>("max").unwrap();
+            let sides = *args.get_one::<u32>("sides").unwrap();
             let format = args.get_one::<String>("format").unwrap().as_str();
 
             let mut greed_solver = GreedSolver::new(max, sides);

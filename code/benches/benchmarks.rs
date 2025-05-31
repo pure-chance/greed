@@ -3,7 +3,7 @@ use greed::GreedSolver;
 
 fn solver(c: &mut Criterion) {
     let mut group = c.benchmark_group("solver");
-    const BOARD_SIZES: &[u16] = &[5, 20, 100];
+    const BOARD_SIZES: &[u32] = &[5, 20, 100];
 
     // Benchmark terminal states solving
     for size in BOARD_SIZES {
