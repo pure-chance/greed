@@ -22,73 +22,63 @@ impl OptimalAction {
     }
 }
 
+/// The optimal policy of Greed for the given ruleset
+///
+/// # Optimizations
+///
+/// - Store all policies in a single vector, with states with similar active score next to each other. This improves lookup speed because it reduces the number of cache misses.
 #[derive(Debug, Clone, Default)]
 pub struct Policy {
-    terminal: Vec<Vec<OptimalAction>>,
-    normal: Vec<Vec<OptimalAction>>,
+    policy: Box<[OptimalAction]>,
+    max: u32,
 }
 
 impl Policy {
+    /// Creates a new unoptimized policy for the given ruleset
     #[must_use]
     pub fn new(max: u32) -> Self {
-        let size = (max + 1) as usize;
-        let terminal = vec![vec![OptimalAction::default(); size]; size];
-        let normal = vec![vec![OptimalAction::default(); size]; size];
-        Self { terminal, normal }
+        let size = ((max + 1) * (max + 1) * 2) as usize;
+        let policy = vec![OptimalAction::default(); size].into_boxed_slice();
+        Self { policy, max }
     }
+    /// Get the optimal action for a given state
     #[must_use]
     pub fn get(&self, state: &State) -> OptimalAction {
-        if state.last() {
-            self.terminal[state.active() as usize][state.queued() as usize]
-        } else {
-            self.normal[state.active() as usize][state.queued() as usize]
-        }
+        let placement = state.active() + (self.max + 1) * state.queued();
+        let last_offset = (self.max + 1) * (self.max + 1) * u32::from(state.last());
+        self.policy[(placement + last_offset) as usize]
     }
+    /// Set the optimal action for a given state
     pub fn set(&mut self, state: &State, action: OptimalAction) {
-        if state.last() {
-            self.terminal[state.active() as usize][state.queued() as usize] = action;
-        } else {
-            self.normal[state.active() as usize][state.queued() as usize] = action;
-        }
+        let placement = state.active() + (self.max + 1) * state.queued();
+        let last_offset = (self.max + 1) * (self.max + 1) * u32::from(state.last());
+        self.policy[(placement + last_offset) as usize] = action;
     }
-}
-
-impl Policy {
+    /// Iterate over all state-action pairs
+    ///
+    /// # Panics
+    ///
+    /// Panics if the state space is too big to fit in a `u32`.
     pub fn iter(&self) -> impl Iterator<Item = (State, OptimalAction)> + '_ {
-        let terminal_iter = self.terminal.iter().enumerate().flat_map(|(i, row)| {
-            row.iter()
-                .enumerate()
-                .map(move |(j, &action)| (State::new(i as u32, j as u32, true), action))
-        });
-
-        let normal_iter = self.normal.iter().enumerate().flat_map(|(i, row)| {
-            row.iter()
-                .enumerate()
-                .map(move |(j, &action)| (State::new(i as u32, j as u32, false), action))
-        });
-
-        terminal_iter.chain(normal_iter)
-    }
-}
-
-impl IntoIterator for Policy {
-    type Item = (State, OptimalAction);
-    type IntoIter = Box<dyn Iterator<Item = Self::Item>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        let terminal_iter = self.terminal.into_iter().enumerate().flat_map(|(i, row)| {
-            row.into_iter()
-                .enumerate()
-                .map(move |(j, action)| (State::new(i as u32, j as u32, true), action))
-        });
-
-        let normal_iter = self.normal.into_iter().enumerate().flat_map(|(i, row)| {
-            row.into_iter()
-                .enumerate()
-                .map(move |(j, action)| (State::new(i as u32, j as u32, false), action))
-        });
-
-        Box::new(terminal_iter.chain(normal_iter))
+        self.policy
+            .iter()
+            .enumerate()
+            .map(move |(placement, action)| {
+                let placement = u32::try_from(placement).expect("state space too big");
+                let last_offset =
+                    u32::try_from((self.max + 1) * (self.max + 1)).expect("state space too big");
+                let (active, queued, last) = if placement >= last_offset {
+                    let adjusted_placement = placement - last_offset;
+                    let active = adjusted_placement % (self.max + 1);
+                    let queued = adjusted_placement / (self.max + 1);
+                    (active, queued, true)
+                } else {
+                    let active = placement % (self.max + 1);
+                    let queued = placement / (self.max + 1);
+                    (active, queued, false)
+                };
+                (State::new(active, queued, last), *action)
+            })
     }
 }
 
