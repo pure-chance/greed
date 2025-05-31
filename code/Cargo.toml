@@ -15,5 +15,17 @@ rand = "0.9.1"
 criterion = "0.5"
 
 [[bench]]
-name = "benchmarks"
+name = "terminal"
+harness = false
+
+[[bench]]
+name = "normal"
+harness = false
+
+[[bench]]
+name = "solve"
+harness = false
+
+[[bench]]
+name = "pmf"
 harness = false
