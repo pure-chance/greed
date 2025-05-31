@@ -16,6 +16,7 @@ pub struct OptimalAction {
 }
 
 impl OptimalAction {
+    /// Create a new optimal action with a given number of dice and payoff
     #[must_use]
     pub fn new(n: u32, payoff: f64) -> Self {
         OptimalAction { n, payoff }
@@ -201,11 +202,17 @@ impl GreedSolver {
     }
     /// Find the optimal terminal action for a given state
     ///
-    /// Because the optimal action is defined as having the highest probability of having `total` fall between `queued` and `max`, the distribution of `payoff` with respect to `n` is unimodal. This means that when the active player is behind we can search from `n = min_non-zero_payoff` up until the payoff starts decreasing, and then stop. This is guaranteed to have found the optimal action.
+    /// # Optimizations
+    ///
+    /// - Because the optimal action is defined as having the highest probability of having `total` fall between `queued` and `max`, the distribution of `payoff` with respect to `n` is unimodal. This means that when the active player is behind we can search from `n = min_non-zero_payoff` up until the payoff starts decreasing, and then stop. This is guaranteed to have found the optimal action.
     fn find_optimal_terminal_action(&self, state: State) -> OptimalAction {
         if state.active() > state.queued() {
             // If already ahead, doing nothing wins 100% of the time.
             return OptimalAction { n: 0, payoff: 1.0 };
+        }
+        if self.sides() * (state.queued() - state.active() + 1) <= self.max() - state.active() {
+            // If there is some action where the minimum sum is greater than the difference between the queued and active players AND the maximum sum is less than the difference between the max score and active players, then that action wins 100% of the time.
+            return OptimalAction::new(state.queued() - state.active() + 1, 1.0);
         }
 
         let mut optimal_action = OptimalAction::new(0, -1.0);
@@ -237,7 +244,7 @@ impl GreedSolver {
         (dice_rolled..=self.sides() * dice_rolled).fold(0.0, |acc, dice_total| {
             let p_for_total = self.pmfs.lookup(dice_rolled, dice_total);
             match (state.active() + dice_total).cmp(&state.queued()) {
-                Ordering::Greater if state.active() + dice_total <= self.max() => acc + p_for_total,
+                Ordering::Greater if state.active() + dice_total <= self.max() => acc + p_for_total, // higher valid score
                 Ordering::Less | Ordering::Greater => acc - p_for_total, // lower score or bust
                 Ordering::Equal => acc,                                  // tie
             }
@@ -248,9 +255,11 @@ impl GreedSolver {
 impl GreedSolver {
     /// Solve normal states
     ///
-    /// # Panics
+    /// As previous payoffs rely on knowing later payoffs, the payoffs must be computed in reverse. This means starting at (M, M, F) and working backwards. This occurs visually as computing along the top-left to bottom-right diagonal, moving towards the bottom-left.
     ///
-    /// This presupposes that the terminal states have already been solved. Will panic if this invariant is not met.
+    /// # Invariants
+    ///
+    /// This presupposes that the all possible futures states (normal and terminal) have already been solved.
     pub fn solve_normal_states(&mut self) {
         // Process each order sequentially (constraint of the dynamic programming).
         for order in (0..=2 * self.max()).rev() {
@@ -279,9 +288,9 @@ impl GreedSolver {
     }
     /// Find the optimal normal action for a given state
     ///
-    /// # Panics
+    /// # Invariants
     ///
-    /// This presupposes that the terminal states have already been solved, and that all payoffs with a higher order have already been calculated. Will panic if this invariant is not met.
+    /// This presupposes that the all possible futures states (normal and terminal) have already been solved.
     fn find_optimal_normal_action(&self, state: State) -> OptimalAction {
         let max_reasonable_n = 2 * (self.max() - state.active()) / (self.sides() + 1) + 3; // +1 for safety of checking high enough
         let (optimal_roll, optimal_payoff) = (0..=max_reasonable_n)
@@ -292,9 +301,9 @@ impl GreedSolver {
     }
     /// Calculate the payoff when in state `state` and rolling `dice_rolled` # of dice
     ///
-    /// # Panics
+    /// # Invariants
     ///
-    /// This presupposes that the terminal states have already been solved, and that all payoffs with a higher order have already been calculated. Will panic if this invariant is not met.
+    /// This presupposes that the all possible futures states (normal and terminal) have already been solved.
     #[must_use]
     pub fn calc_normal_payoff(&self, state: State, dice_rolled: u32) -> f64 {
         if dice_rolled == 0 {
