@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use std::io::{stdin, Write};
+use std::io::{Write, stdin};
 
 use colored::Colorize;
 use rand::{distr::Uniform, prelude::*};

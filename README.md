@@ -82,7 +82,7 @@ cargo run --release -- solve --max 100 --sides 6 --format png
 ```
 
 | | **Terminal** | **Normal** |
-|----------------|------------------------------------------|----------------------------------------|
+|-|--------------|------------|
 | **Payoff** | ![Terminal Payoffs](paper/assets/terminal_payoffs.svg) | ![Normal Payoffs](paper/assets/normal_payoffs.svg) |
 | **n** | ![Terminal Rolls](paper/assets/terminal_n.svg) | ![Normal Rolls](paper/assets/normal_n.svg) |
 

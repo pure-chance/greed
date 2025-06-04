@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
 use greed::{fft_convolve, solver::PMFLookup};
 
 fn pmf_benchmarks(c: &mut Criterion) {
