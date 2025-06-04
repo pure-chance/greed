@@ -13,7 +13,7 @@ use crate::pmf::fft_convolve;
 pub struct OptimalAction {
     /// Dice to roll
     n: u32,
-    /// Payoff given a roll of `n` dice.
+    /// Payoff given a roll of `n` dice
     payoff: f64,
 }
 
@@ -112,8 +112,7 @@ impl PMFLookup {
 
 /// A solver for Greed
 ///
-/// A game of Greed is a two-player dice game where players take turns rolling dice and accumulating points.
-/// The goal is to have a higher end score than the opponent without exceeding the maximum score (going bust).
+/// A game of Greed is a two-player dice game where players take turns rolling dice and accumulating points. The goal is to have a higher end score than the opponent without exceeding the maximum score (going bust).
 ///
 /// # Rules
 ///
@@ -212,7 +211,7 @@ impl GreedSolver {
             return OptimalAction { n: 0, payoff: 1.0 };
         }
         if self.sides() * (state.queued() - state.active() + 1) <= self.max() - state.active() {
-            // If there is some action where the minimum sum is greater than the difference between the queued and active players AND the maximum sum is less than the difference between the max score and active players, then that action wins 100% of the time.
+            // If there is some action A where the minimum sum > queued - active AND the maximum sum is < max score - active, then that action wins 100% of the time.
             return OptimalAction::new(state.queued() - state.active() + 1, 1.0);
         }
 
@@ -245,10 +244,10 @@ impl GreedSolver {
         }
 
         (dice_rolled..=self.sides() * dice_rolled).fold(0.0, |acc, dice_total| {
-            let p_for_total = self.pmfs.lookup(dice_rolled, dice_total);
+            let probability = self.pmfs.lookup(dice_rolled, dice_total);
             match (state.active() + dice_total).cmp(&state.queued()) {
-                Ordering::Greater if state.active() + dice_total <= self.max() => acc + p_for_total, // higher valid score
-                Ordering::Less | Ordering::Greater => acc - p_for_total, // lower score or bust
+                Ordering::Greater if state.active() + dice_total <= self.max() => acc + probability, // higher valid score
+                Ordering::Less | Ordering::Greater => acc - probability, // lower score or bust
                 Ordering::Equal => acc,                                  // tie
             }
         })
