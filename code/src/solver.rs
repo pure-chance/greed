@@ -89,7 +89,7 @@ impl PMFLookup {
     /// Creates a new `PMFLookup` table for the given maximum score and number of sides on the dice
     #[must_use]
     pub fn precompute(max: u32, sides: u32) -> Self {
-        let max_n = (2 * max / (sides + 1) + 1).max(max + 1);
+        let max_n = (2 * (max + sides) / (sides + 1)).max(max + 1);
 
         let mut pmfs: Vec<Vec<f64>> = Vec::with_capacity(max as usize + 1);
         let dice_pmf = vec![1.0 / f64::from(sides); sides as usize];
@@ -291,8 +291,10 @@ impl GreedSolver {
     ///
     /// This presupposes that the all possible futures states (normal and terminal) have already been solved.
     fn find_optimal_normal_action(&self, state: State) -> OptimalAction {
-        let max_reasonable_n = 2 * (self.max() - state.active()) / (self.sides() + 1) + 3; // +1 for safety of checking high enough
-        let (optimal_roll, optimal_payoff) = (0..=max_reasonable_n)
+        // The mean is $(n)(s + 1) / 2$, thus the $n$ for which the mean next score is greater than the max score is $ceil(2 * (MAX - a) / (s + 1))$. This is the same as $2 * (MAX - a + s) / (s + 1)$. This is how `max_optimal_n` is calculated.
+        let max_optimal_n = 2 * (self.max() - state.active() + self.sides()) / (self.sides() + 1);
+        let (optimal_roll, optimal_payoff) = (0..=max_optimal_n)
+            .rev() // If equal, the less aggressive move is taken.
             .map(|dice_rolled| (dice_rolled, self.calc_normal_payoff(state, dice_rolled)))
             .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
             .unwrap();
