@@ -63,24 +63,21 @@ impl Policy {
     ///
     /// Panics if the state space is too big to fit in a `u32`.
     pub fn iter(&self) -> impl Iterator<Item = (State, OptimalAction)> + '_ {
-        self.policy
-            .iter()
-            .enumerate()
-            .map(move |(placement, action)| {
-                let placement = u32::try_from(placement).expect("state space too big");
-                let last_offset = (self.max + 1) * (self.max + 1);
-                let (active, queued, last) = if placement >= last_offset {
-                    let adjusted_placement = placement - last_offset;
-                    let active = adjusted_placement % (self.max + 1);
-                    let queued = adjusted_placement / (self.max + 1);
-                    (active, queued, true)
-                } else {
-                    let active = placement % (self.max + 1);
-                    let queued = placement / (self.max + 1);
-                    (active, queued, false)
-                };
-                (State::new(active, queued, last), *action)
-            })
+        self.policy.iter().enumerate().map(|(placement, action)| {
+            let placement = u32::try_from(placement).expect("state space too big");
+            let last_offset = (self.max + 1) * (self.max + 1);
+            let (active, queued, last) = if placement >= last_offset {
+                let adjusted_placement = placement - last_offset;
+                let active = adjusted_placement % (self.max + 1);
+                let queued = adjusted_placement / (self.max + 1);
+                (active, queued, true)
+            } else {
+                let active = placement % (self.max + 1);
+                let queued = placement / (self.max + 1);
+                (active, queued, false)
+            };
+            (State::new(active, queued, last), *action)
+        })
     }
 }
 
