@@ -83,11 +83,11 @@ cargo run --release -- solve --max 100 --sides 6 --format png
 
 | | **Terminal** | **Normal** |
 |-|--------------|------------|
-| **Payoff** | ![Terminal Payoffs](paper/assets/terminal_payoffs.svg) | ![Normal Payoffs](paper/assets/normal_payoffs.svg) |
-| **n** | ![Terminal Rolls](paper/assets/terminal_n.svg) | ![Normal Rolls](paper/assets/normal_n.svg) |
+| **Payoff** | ![Terminal Payoffs](paper/assets/terminal_payoffs.png) | ![Normal Payoffs](paper/assets/normal_payoffs.png) |
+| **n** | ![Terminal Rolls](paper/assets/terminal_n.png) | ![Normal Rolls](paper/assets/normal_n.png) |
 
 
 ## Key Findings
 
-- **No player has a significant advantage at the start**: Each player has a roughly equal chance of winning at the start of the game.
+- **The first player has a slight advantage**: The first player has a slight advantage at the start of the game, but luck will subsume any advantage that they may initially have.
 - **Stopping early is risky**: Even when ahead, halting before reaching ~80–90 points gives the opponent a significant chance to catch up in a single roll.

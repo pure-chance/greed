@@ -7,6 +7,7 @@
 #let definition = definition.with(fill: rgb("#40a02b").lighten(80%))
 
 #let remark = remark.with(fill: rgb("#dd7878"))
+#let note = note-box.with(fill: rgb("#1e66f5"))
 
 // important equations
 #let equation = theorem-box.with(fill: rgb("#dc8a78").lighten(80%))

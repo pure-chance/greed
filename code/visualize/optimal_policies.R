@@ -16,11 +16,11 @@ normal_states <- greed %>% filter(last == FALSE)
 
 #' Payoff: red (negative) -> white (zero) -> blue (positive)
 payoff_colors <- scale_fill_gradient2(
-  low = "red", mid = "white", high = "blue", midpoint = 0
+  low = "#e64553", mid = "#eff1f5", high = "#1e66f5", midpoint = 0
 )
 
 #' n: white (zero) -> blue (large)
-n_colors <- scale_fill_gradient(low = "white", high = "blue")
+n_colors <- scale_fill_gradient(low = "#eff1f5", high = "#1e66f5")
 
 terminal_payoffs <- ggplot(
   terminal_states,

@@ -179,7 +179,9 @@ Of course, it's impossible to test every possible $n$ in practice. Luckily, ther
 ] <prop:upper-bound-actions>
 
 #proof[
-  Note that the expected value of $n$ die with $s$ sides is $(n (s + 1)) / 2$. Thus $n_("max")$ is the point where the mean of $n$ exceeds the max score.
+  The expected value of $n$ die with $s$ sides is $
+    (n (s + 1)) / 2.
+  $ Thus $n_("max")$ is the point where the mean of $n$ exceeds the max score.
 
   The pmf of the sum of the dice is unimodal. Consider any following state where $a + t <= M$. For any two $n$ such that $n_("max") <= n_1 < n_2$, the probability of being at that score is strictly decreasing between $n_1$ and $n_2$. This occurs at every score that yields a positive payoff. Therefore, the sum is strictly decreasing between $n_1$ and $n_2$.
 
@@ -188,9 +190,9 @@ Of course, it's impossible to test every possible $n$ in practice. Luckily, ther
 
 This is a reasonable upper bound. But we can actually do better. Running simulations on a wide set of n, we find that the payoff function is unimodal with respect to $n$. This means that once the payoff starts decreasing, we can stop testing further $n$ and take the maximum.
 
-$ --- $
+#note[The following optimization is not used in @greed (the greed solver source code).]
 
-It's possible to leverage previous knowledge to narrow the score of $n$ to test even more.
+In addition to the above, it's possible to leverage previous knowledge to narrow the score of $n$ to test even more.
 
 Let $s = (a, q, T), s' = (a, q + t, T)$ where $t > 0$. Let $n_star$ be the optimal number of dice to roll for state $s$, and $n^'_star$ be the optimal number of dice to roll for state $s'$. It's guaranteed that $n^'_star <= n_star$. Similarly, for $s = (a, q, T), s' = (a - t, q, T)$, it's also true that $n^'_star <= n_star$.
 
@@ -219,19 +221,19 @@ With the theoretical framework established, we implemented the dynamic programmi
 The following visualizations present the computed optimal policies and their associated payoffs for both terminal and normal game states. These visualizations provide many insights into the strategic principles of Greed and what those principles say about the game itself.
 
 #let terminal-payoffs = figure(
-  image("assets/terminal_payoffs.svg"),
+  image("assets/terminal_payoffs.png"),
   caption: [Optimal payoffs for terminal states.]
 )
 #let normal-payoffs = figure(
-  image("assets/normal_payoffs.svg"),
+  image("assets/normal_payoffs.png"),
   caption: [Optimal payoffs for normal states.]
 )
 #let terminal-n = figure(
-  image("assets/terminal_n.svg"),
+  image("assets/terminal_n.png"),
   caption: [Optimal die to throw for terminal states.]
 )
 #let normal-n = figure(
-  image("assets/normal_n.svg"),
+  image("assets/normal_n.png"),
   caption: [Optimal die to throw for normal states.]
 )
 
@@ -248,19 +250,37 @@ The following visualizations present the computed optimal policies and their ass
 
 == A Game of Chicken
 
-Looking at @fig:terminal-payoffs, it's clear that you should absolutely not stop rolling dice if you are not already very close to the max score, because otherwise the opponent can easily catch up and win. The most notable feature is the band of balanced endgames (the white band), which follows a square-root function. Relating the terminal payoffs to the normal states, notice that the (bid) red area over the white band is the inverse of the (good) blue area for the normal payoffs. This is expected, since normal states in the positive region will lead the opponent to the corresponding negative region in the terminal states.
+Looking at @fig:terminal-payoffs, it's clear that you should absolutely not stop rolling dice if you are not already very close to the max score, because otherwise the opponent can easily catch up and win. The most notable feature is the band of balanced endgames (the white band), which follows a square-root function. Relating the terminal payoffs to the normal states, notice that the (bad) red area over the white band is the inverse of the (good) blue area for the normal payoffs. This is expected, since normal states in the positive region will lead the opponent to the corresponding negative region in the terminal states.
 
 Another detail worth mentioning is the 4 white tiles at $(100, 100, F), (99, 99, F), ..., (96, 96, F)$ These states are ties, because rolling even one die will result in a bust at least half the time.
 
-== A Balanced Game
+Adjacent to all this, notice that the blue band for normal states corresponds to the white band on the normal rolls, signifying that when you have even a little advantage, you should aim to end the game on that turn. This implies that the game is very endgame focused, and the aim is to gain an advantage and end the game is fast as possible.
 
-Looking instead at the normal states, notice that the payoffs for normal states are very balanced. Unless you are in an extreme position, the game is a deadlock. Adjacent to all this, notice that the blue band for normal states corresponds to the white band on the normal rolls, signifying that when you have even a little advantage, you should aim to end the game on that turn. This implies that the game is very endgame focused, and the aim is to gain an advantage and end the game is fast as possible.
+== The Opening
 
-== Optimal Die Oddities
+Looking instead at the normal states, notice that the payoffs for normal states are _slightly_ skewed towards the active player. This means that in the early game, it's good to be "in the drivers seat", even if you're slightly behind. Of course this means that when you roll, now the opponent may be the one with the slight edge.
 
-From an optimal die perspective, we see linear gradients, which is intuitive. After all, the goal is to either get as close to the maximum (for normal states) or between the opponent and the max (for terminal states). What's interesting are the edges, which tend to have odd values. In the terminal states with high $n$, we get some bizarre artifacts, likely a result of compounding floating-point precision errors.
+== Optimal Action Oddities
+
+From an optimal action perspective, we see linear gradients, which is intuitive. After all, the goal is to either get as close to the maximum (for normal states) or between the opponent and the max (for terminal states). What's interesting are the edges, which tend to have odd values. In the terminal states with high $n$, we get some bizarre artifacts, likely a result of compounding floating-point precision errors.
 
 There are also some odd $n$ values, jumping back and forth between neighboring $n$. This is in part caused by the interaction of the sides and fixed maximum. However, it is likely also in part floating-point error or even (maybe) implementation oversights.
+
+== Normal States Are Bizarre
+
+Of all the visualizations, the normal states are the most wild. They exhibit a complex behavior near the maximum (for both players), and have odd bands that are exactly the width as the number of sides on each die.
+
+First considering the bands, this again demonstrates the behavior between the sides and fixed maximum. If you get lucky and the max sum is only 0, or 1 over the max, then the payoff is better than if the maximum sum is 4 or 5 over the max. This repeats every $s$, since that's when the pattern repeats.
+
+Secondly, the behavior near the max. The most striking patterns are the two "spikes" where despite being ahead, the opposite player has a better chance of winning. It is likely that these spikes exist because in those states, you can't stand, as the opponent could easily win by rolling $1$ die, so you most roll once and then stand on the next turn. But if you roll, the opponent has $2$ chances to roll against your $1$.
+
+Both these behaviors are easier to see in @fig:normal-payoffs-500-20 compared to @fig:normal-payoffs.
+
+#figure(
+  image("assets/normal_payoffs_500_20.png"),
+  caption: [Optimal normal payoffs for games with ruleset $(500, 20)$.],
+  placement: auto,
+) <fig:normal-payoffs-500-20>
 
 = Conclusion <conclusion>
 
