@@ -312,14 +312,14 @@ impl GreedSolver {
             return -self.policy.get(&terminal_state).payoff;
         }
         (dice_rolled..=self.sides() * dice_rolled).fold(0.0, |acc, dice_total| {
-            if state.active() + dice_total < self.max() {
-                let probability: f64 = self.pmfs.lookup(dice_rolled, dice_total);
+            let probability: f64 = self.pmfs.lookup(dice_rolled, dice_total);
+            let payoff = if state.active() + dice_total <= self.max() {
                 let state = State::new(state.queued(), state.active() + dice_total, false);
-                let payoff: f64 = -self.policy.get(&state).payoff;
-                acc + probability * payoff
+                -self.policy.get(&state).payoff
             } else {
-                acc
-            }
+                -1.0
+            };
+            acc + probability * payoff
         })
     }
 }
