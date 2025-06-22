@@ -221,28 +221,28 @@ With the theoretical framework established, we implemented the dynamic programmi
 The following visualizations present the computed optimal policies and their associated payoffs for both terminal and normal game states. These visualizations provide many insights into the strategic principles of Greed and what those principles say about the game itself.
 
 #let terminal-payoffs = figure(
-  image("assets/terminal_payoffs.png"),
-  caption: [Optimal payoffs for terminal states.]
+  image("assets/terminal_payoffs.svg", width: 100%),
+  caption: [*Optimal payoffs for terminal states given the standard ruleset of $M = 100, s = 6$.* The optimal policy for terminal states gives payoffs that benefit the active player unless the queued player has built a sufficient lead, or the score is very close to $M$.]
 )
 #let normal-payoffs = figure(
-  image("assets/normal_payoffs.png"),
-  caption: [Optimal payoffs for normal states.]
+  image("assets/normal_payoffs.svg", width: 100%),
+  caption: [*Optimal payoffs for normal states given the standard ruleset of $M = 100, s = 6$.* The optimal policy for normal states gives payoffs slightly benefit the active player in the opening, and strongly benefit players who have a massive lead nearing $M$. There are also bands spaced $s$ apart of better payoffs.]
 )
 #let terminal-n = figure(
-  image("assets/terminal_n.png"),
-  caption: [Optimal die to throw for terminal states.]
+  image("assets/terminal_n.svg", width: 100%),
+  caption: [*Optimal policy for terminal states given the standard ruleset of $M = 100, s = 6$.* As expected, the optimal policy for terminal states where the active player is ahead is to roll $0$ and claim the guaranteed win. This also holds true for states where the active player can force a win by rolling some $n$ number of dice. For cases where there is no guaranteed win, the optimal $n$ dice to roll increases as the gap between the active player's score and the queued player's score increases, bounded by $M$.]
 )
 #let normal-n = figure(
-  image("assets/normal_n.png"),
-  caption: [Optimal die to throw for normal states.]
+  image("assets/normal_n.svg", width: 100%),
+  caption: [*Optimal policy for normal states given the standard ruleset of $M = 100, s = 6$.* It's only advantageous to _stand_ when very close to $M$ (though a little less when significantly ahead). Otherwise, it's optimal to _roll_ with almost no regard to the other player's score (outside of being within $approx 5\%$ of $M$).]
 )
 
 #place(auto, scope: "parent", float: true)[
   #grid(
     columns: 2,
+    gutter: 2em,
     box[#terminal-payoffs <fig:terminal-payoffs>],
     box[#normal-payoffs <fig:normal-payoffs>],
-    v(1em), v(1em), // add v padding so plot's don't overlap captions
     box[#terminal-n <fig:terminal-n>],
     box[#normal-n <fig:normal-n>],
   )
@@ -277,8 +277,8 @@ Secondly, the behavior near the max. The most striking patterns are the two "spi
 Both these behaviors are easier to see in @fig:normal-payoffs-500-20 compared to @fig:normal-payoffs.
 
 #figure(
-  image("assets/normal_payoffs_500_20.png"),
-  caption: [Optimal normal payoffs for games with ruleset $(500, 20)$.],
+  image("assets/normal_payoffs_500_20.svg"),
+  caption: [*Optimal payoffs for normal states given ruleset $(500, 20)$.*],
   placement: auto,
 ) <fig:normal-payoffs-500-20>
 

@@ -1,16 +1,15 @@
 #import "@preview/theorion:0.3.3": *
+#import "../colors.typ": *
 #import cosmos.clouds: *
 
-// pretty colors
-#let theorem = theorem.with(fill: rgb("#1e66f5").lighten(80%))
-#let proposition = proposition.with(fill: rgb("#7287fd").lighten(80%))
-#let definition = definition.with(fill: rgb("#40a02b").lighten(80%))
+// pretty colors (for environments)
+#let theorem = theorem.with(fill: hl.blue)
+#let proposition = proposition.with(fill: hl.lavender)
+#let definition = definition.with(fill: hl.green)
 
-#let remark = remark.with(fill: rgb("#dd7878"))
-#let note = note-box.with(fill: rgb("#1e66f5"))
+// pretty colors (for notes)
+#let remark = remark.with(fill: colors.maroon.lighten(20%))
+#let note = note-box.with(fill: colors.blue.lighten(20%))
 
 // important equations
-#let equation = theorem-box.with(fill: rgb("#dc8a78").lighten(80%))
-
-// conjecture environment
-#let conjecture(body) = theorem-box[body]
+#let equation = theorem-box.with(fill: hl.maroon)

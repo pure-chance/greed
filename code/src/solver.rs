@@ -378,12 +378,12 @@ impl GreedSolver {
         writer.flush()?;
         Ok(())
     }
-    /// Generate PNG visualizations using R script
+    /// Generate SVG visualizations using R script
     ///
     /// # Errors
     ///
     /// Returns an error if the R script execution fails.
-    pub fn png(&self) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn svg(&self) -> Result<(), Box<dyn std::error::Error>> {
         // Create temporary CSV file
         let temp_file = NamedTempFile::new()?;
         let temp_path = temp_file.path();

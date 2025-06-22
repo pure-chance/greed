@@ -73,18 +73,18 @@ cargo run --release -- solve --max 100 --sides 6 --format stdout
 # generates csv file `visualize/greed_[max]_[sides].csv`
 cargo run --release -- solve --max 100 --sides 6 --format csv
 
-# generates png files [default]
-# - `terminal_n.png`
-# - `terminal_payoffs.png`
-# - `normal_n.png`
-# - `normal_payoffs.png`
-cargo run --release -- solve --max 100 --sides 6 --format png
+# generates svg files [default]
+# - `terminal_n.svg`
+# - `terminal_payoffs.svg`
+# - `normal_n.svg`
+# - `normal_payoffs.svg`
+cargo run --release -- solve --max 100 --sides 6 --format svg
 ```
 
 | | **Terminal** | **Normal** |
 |-|--------------|------------|
-| **Payoff** | ![Terminal Payoffs](paper/assets/terminal_payoffs.png) | ![Normal Payoffs](paper/assets/normal_payoffs.png) |
-| **n** | ![Terminal Rolls](paper/assets/terminal_n.png) | ![Normal Rolls](paper/assets/normal_n.png) |
+| **Payoff** | ![Terminal Payoffs](paper/assets/terminal_payoffs.svg) | ![Normal Payoffs](paper/assets/normal_payoffs.svg) |
+| **n** | ![Terminal Rolls](paper/assets/terminal_n.svg) | ![Normal Rolls](paper/assets/normal_n.svg) |
 
 
 ## Key Findings

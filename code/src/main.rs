@@ -59,8 +59,8 @@ fn main() {
             Arg::new("format")
                 .short('f')
                 .long("format")
-                .value_parser(["stdout", "csv", "png"])
-                .default_value("png")
+                .value_parser(["stdout", "csv", "svg"])
+                .default_value("svg")
                 .help("Output format"),
         );
 
@@ -93,9 +93,9 @@ fn main() {
                         eprintln!("Failed to write CSV file: {}", e);
                     }
                 }
-                "png" => {
-                    if let Err(e) = greed_solver.png() {
-                        eprintln!("Failed to generate PNG: {}", e);
+                "svg" => {
+                    if let Err(e) = greed_solver.svg() {
+                        eprintln!("Failed to generate SVG file: {}", e);
                         eprintln!("Make sure R is installed and 'Rscript' is in your PATH");
                     }
                 }
