@@ -10285,8 +10285,8 @@
 <text x='268.27' y='430.91' text-anchor='middle' style='font-size: 8.80px;fill: #4D4D4D; font-family: "Arial";' textLength='9.78px' lengthAdjust='spacingAndGlyphs'>50</text>
 <text x='357.49' y='430.91' text-anchor='middle' style='font-size: 8.80px;fill: #4D4D4D; font-family: "Arial";' textLength='9.78px' lengthAdjust='spacingAndGlyphs'>75</text>
 <text x='446.71' y='430.91' text-anchor='middle' style='font-size: 8.80px;fill: #4D4D4D; font-family: "Arial";' textLength='14.67px' lengthAdjust='spacingAndGlyphs'>100</text>
-<text x='268.27' y='443.37' text-anchor='middle' style='font-size: 11.00px; font-family: "Arial";' textLength='76.47px' lengthAdjust='spacingAndGlyphs'>Score for active</text>
-<text transform='translate(45.36,221.43) rotate(-90)' text-anchor='middle' style='font-size: 11.00px; font-family: "Arial";' textLength='84.47px' lengthAdjust='spacingAndGlyphs'>Score for queued</text>
+<text x='268.27' y='443.37' text-anchor='middle' style='font-size: 11.00px; font-family: "Arial";' textLength='67.88px' lengthAdjust='spacingAndGlyphs'>Score (active)</text>
+<text transform='translate(45.36,221.43) rotate(-90)' text-anchor='middle' style='font-size: 11.00px; font-family: "Arial";' textLength='75.88px' lengthAdjust='spacingAndGlyphs'>Score (queued)</text>
 <rect x='201.34' y='456.65' width='133.85' height='41.87' style='stroke-width: 1.07; stroke: none; fill: #FFFFFF;' />
 <text x='206.82' y='481.52' style='font-size: 11.00px; font-family: "Arial";' textLength='31.02px' lengthAdjust='spacingAndGlyphs'>Payoff</text>
 <image width='86.40' height='17.28' x='243.32' y='462.13' preserveAspectRatio='none' xlink:href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAAABCAYAAABkOJMpAAAAmklEQVQ4jZ2QQRLDIAwD1/yyx36/X2hi95DAGANOk4MGLEtLJvJ5vY0iiAhUxVlAip8PRS8yBi/pLrMXnOztnF9S3rS74D5lIoI97hbXnf+zjD125zwLGe+Z0YS7d6LeJc8louM8EIFlcqvzT1ZvfoeXXmRW+9mb2vY27eqCW3uzfdxpvTN6PqvB7z1Dgf2c23l6VZvBxnF+DX5xxC+JDDorrQAAAABJRU5ErkJggg=='/>
@@ -10299,7 +10299,7 @@
 <text x='260.78' y='491.19' text-anchor='middle' style='font-size: 8.80px; font-family: "Arial";' textLength='15.14px' lengthAdjust='spacingAndGlyphs'>-0.5</text>
 <text x='284.39' y='491.19' text-anchor='middle' style='font-size: 8.80px; font-family: "Arial";' textLength='12.22px' lengthAdjust='spacingAndGlyphs'>0.0</text>
 <text x='307.99' y='491.19' text-anchor='middle' style='font-size: 8.80px; font-family: "Arial";' textLength='12.22px' lengthAdjust='spacingAndGlyphs'>0.5</text>
-<text x='70.02' y='14.93' style='font-size: 13.20px; font-family: "Arial";' textLength='89.88px' lengthAdjust='spacingAndGlyphs'>Normal Payoffs</text>
+<text x='70.02' y='14.93' style='font-size: 13.20px; font-family: "Arial";' textLength='138.95px' lengthAdjust='spacingAndGlyphs'>Optimal Normal Payoffs</text>
 </g>
 </g>
 </svg>

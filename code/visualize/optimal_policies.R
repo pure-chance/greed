@@ -1,4 +1,6 @@
 library(tidyverse)
+library(conflicted)
+conflict_prefer("filter", "dplyr")
 
 args <- commandArgs(trailingOnly = TRUE)
 
@@ -9,7 +11,7 @@ if (file.exists(args[1])) {
     mutate(last = if_else(last == "true", TRUE, FALSE))
   output_dir <- "./"
 } else {
-  error("Invalid input: Please provide a valid CSV file path.")
+  stop("Invalid input: Please provide a valid CSV file path.")
 }
 terminal_states <- greed %>% filter(last == TRUE)
 normal_states <- greed %>% filter(last == FALSE)
@@ -22,50 +24,65 @@ payoff_colors <- scale_fill_gradient2(
 # n: white (zero) -> blue (large)
 n_colors <- scale_fill_gradient(low = "#eff1f5", high = "#1e66f5")
 
-create_optimal_policies <- function(states, colors, title, x, y, fill) {
-  ggplot(states, aes(x = active, y = queued, fill = payoff)) +
-    geom_tile() +
-    payoff_colors +
-    labs(title = title, x = x, y = y, fill = fill) +
-    theme(legend.position = "bottom") +
-    coord_fixed()
-}
-
-terminal_payoffs <- create_optimal_policies(
+terminal_payoffs <- ggplot(
   terminal_states,
-  payoff_colors,
-  title = "Terminal Payoffs",
-  x = "Score for active",
-  y = "Score for queued",
-  fill = "Payoff"
-)
+  aes(active, queued, fill = payoff)
+) +
+  geom_tile() +
+  payoff_colors +
+  labs(
+    title = "Optimal Terminal Payoffs",
+    x = "Score (active)",
+    y = "Score (queued)",
+    fill = "Payoff"
+  ) +
+  theme(legend.position = "bottom") +
+  coord_fixed()
 
-normal_payoffs <- create_optimal_policies(
+normal_payoffs <- ggplot(
   normal_states,
-  payoff_colors,
-  title = "Normal Payoffs",
-  x = "Score for active",
-  y = "Score for queued",
-  fill = "Payoff"
-)
+  aes(active, queued, fill = payoff)
+) +
+  geom_tile() +
+  payoff_colors +
+  labs(
+    title = "Optimal Normal Payoffs",
+    x = "Score (active)",
+    y = "Score (queued)",
+    fill = "Payoff"
+  ) +
+  theme(legend.position = "bottom") +
+  coord_fixed()
 
-terminal_n <- create_optimal_policies(
+terminal_n <- ggplot(
   terminal_states,
-  n_colors,
-  title = "Terminal Rolls",
-  x = "Score for active",
-  y = "Score for queued",
-  fill = "# Dice"
-)
+  aes(x = active, y = queued, fill = n)
+) +
+  geom_tile() +
+  n_colors +
+  labs(
+    title = "Optimal Terminal Actions",
+    x = "Score (active)",
+    y = "Score (queued)",
+    fill = "n"
+  ) +
+  theme(legend.position = "bottom") +
+  coord_fixed()
 
-normal_n <- create_optimal_policies(
+normal_n <- ggplot(
   normal_states,
-  n_colors,
-  title = "Normal Rolls",
-  x = "Score for active",
-  y = "Score for queued",
-  fill = "# Dice"
-)
+  aes(x = active, y = queued, fill = n)
+) +
+  geom_tile() +
+  n_colors +
+  labs(
+    title = "Optimal Normal Actions",
+    x = "Score (active)",
+    y = "Score (queued)",
+    fill = "n"
+  ) +
+  theme(legend.position = "bottom") +
+  coord_fixed()
 
 save_plot <- function(plot, filename) {
   ggplot2::ggsave(filename, dpi = 1200, plot)
