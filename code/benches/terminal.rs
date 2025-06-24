@@ -3,49 +3,47 @@ use greed::GreedSolver;
 
 fn terminal_states(c: &mut Criterion) {
     let mut group = c.benchmark_group("terminal_states");
-    const BOARD_SIZES: &[u32] = &[5, 10, 20, 50, 100];
 
-    // Benchmark terminal states solving
-    for size in BOARD_SIZES {
+    const RULESETS: [(u32, u32); 3] = [(25, 4), (100, 6), (250, 20)];
+
+    for ruleset in RULESETS {
+        // satisfy invariants
+        let mut solver = GreedSolver::new(ruleset.0, ruleset.1);
+        solver.precompute_pmfs();
+
+        // Benchmark: solving normal states
         group.bench_with_input(
-            BenchmarkId::new("solve_terminal_states", size),
-            size,
-            |b, &size| {
+            BenchmarkId::new("solve", format!("M={},s={}", ruleset.0, ruleset.1)),
+            &ruleset,
+            |b, _| {
+                b.iter(|| solver.solve_terminal_states());
+            },
+        );
+
+        // Benchmark: find optimal action
+        group.bench_with_input(
+            BenchmarkId::new(
+                "calc_optimal_payoff",
+                format!("M={},s={}", ruleset.0, ruleset.1),
+            ),
+            &ruleset,
+            |b, _| {
                 b.iter(|| {
-                    let mut solver = GreedSolver::new(black_box(size), black_box(6));
-                    solver.solve_terminal_states();
+                    solver.find_optimal_terminal_action(black_box(greed::State::new(10, 10, false)))
                 });
             },
         );
-    }
 
-    // Benchmark terminal state solving with different dice sides
-    const DICE_SIDES: &[u32] = &[4, 6, 8, 10, 12, 20];
-    for sides in DICE_SIDES {
+        // Benchmark: computing an optimal payoff
         group.bench_with_input(
-            BenchmarkId::new("terminal_states_dice_sides", sides),
-            sides,
-            |b, &sides| {
+            BenchmarkId::new("calc_payoff", format!("M={},s={}", ruleset.0, ruleset.1)),
+            &ruleset,
+            |b, _| {
                 b.iter(|| {
-                    let mut solver = GreedSolver::new(black_box(20), black_box(sides));
-                    solver.solve_terminal_states();
-                });
-            },
-        );
-    }
-
-    // Benchmark normal payoff calculation which involves terminal state lookups
-    for size in BOARD_SIZES {
-        group.bench_with_input(
-            BenchmarkId::new("calc_normal_payoff_terminal_lookup", size),
-            size,
-            |b, &size| {
-                let mut solver = GreedSolver::new(size, 6);
-                solver.solve_terminal_states();
-                let state = greed::State::new(size / 2, size / 2, false);
-                b.iter(|| {
-                    let _ = solver.calc_normal_payoff(black_box(state), black_box(0));
-                    // 0 dice triggers terminal lookup
+                    solver.calc_terminal_payoff(
+                        black_box(greed::State::new(ruleset.0 / 2, ruleset.1 / 2, false)),
+                        3,
+                    )
                 });
             },
         );

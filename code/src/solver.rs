@@ -202,7 +202,7 @@ impl GreedSolver {
     /// # Optimizations
     ///
     /// - Because the optimal action is defined as having the highest probability of having `total` fall between `queued` and `max`, the distribution of `payoff` with respect to `n` is unimodal. This means that when the active player is behind we can search from `n = min_non-zero_payoff` up until the payoff starts decreasing, and then stop. This is guaranteed to have found the optimal action.
-    fn find_optimal_terminal_action(&self, state: State) -> OptimalAction {
+    pub fn find_optimal_terminal_action(&self, state: State) -> OptimalAction {
         if state.active() > state.queued() {
             // If already ahead, doing nothing wins 100% of the time.
             return OptimalAction { n: 0, payoff: 1.0 };
@@ -231,7 +231,7 @@ impl GreedSolver {
         optimal_action
     }
     /// Calculate the payoff when in state `state` and rolling `dice_rolled` # of dice
-    fn calc_terminal_payoff(&self, state: State, dice_rolled: u32) -> f64 {
+    pub fn calc_terminal_payoff(&self, state: State, dice_rolled: u32) -> f64 {
         if dice_rolled == 0 {
             return match state.active().cmp(&state.queued()) {
                 Ordering::Less => -1.0,
@@ -290,7 +290,7 @@ impl GreedSolver {
     /// # Invariants
     ///
     /// This presupposes that the all possible futures states (normal and terminal) have already been solved.
-    fn find_optimal_normal_action(&self, state: State) -> OptimalAction {
+    pub fn find_optimal_normal_action(&self, state: State) -> OptimalAction {
         // The mean is $(n)(s + 1) / 2$, thus the $n$ for which the mean next score is greater than the max score is $ceil(2 * (MAX - a) / (s + 1))$. This is the same as $2 * (MAX - a + s) / (s + 1)$. This is how `max_optimal_n` is calculated.
         let max_optimal_n = 2 * (self.max() - state.active() + self.sides()) / (self.sides() + 1);
         let (optimal_roll, optimal_payoff) = (0..=max_optimal_n)
