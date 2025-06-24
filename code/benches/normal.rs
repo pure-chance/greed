@@ -1,5 +1,5 @@
 use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
-use greed::GreedSolver;
+use greed::DpSolver;
 
 fn normal_states(c: &mut Criterion) {
     let mut group = c.benchmark_group("normal_states");
@@ -8,7 +8,7 @@ fn normal_states(c: &mut Criterion) {
 
     for ruleset in RULESETS {
         // satisfy invariants
-        let mut solver = GreedSolver::new(ruleset.0, ruleset.1);
+        let mut solver = DpSolver::new(ruleset.0, ruleset.1);
         solver.solve();
 
         // Benchmark: solving normal states

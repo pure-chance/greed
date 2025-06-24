@@ -4,6 +4,8 @@ use std::io::{Write, stdin};
 use colored::Colorize;
 use rand::{distr::Uniform, prelude::*};
 
+use crate::{Ruleset, State};
+
 const WIDTH: usize = 41; // based on banner width
 const BANNER: &str = r"
  ██████╗ ██████╗ ███████╗███████╗██████╗
@@ -13,74 +15,26 @@ const BANNER: &str = r"
 ╚██████╔╝██║  ██║███████╗███████╗██████╔╝
  ╚═════╝ ╚═╝  ╚═╝╚══════╝╚══════╝╚═════╝";
 
-#[derive(Debug, Copy, Clone, Default)]
-pub struct Ruleset {
-    /// Maximum score allowed.
-    max: u32,
-    /// The # of sides on each dice.
-    sides: u32,
-}
-
-impl Ruleset {
-    #[must_use]
-    pub fn new(max: u32, sides: u32) -> Self {
-        Self { max, sides }
-    }
-    #[must_use]
-    pub fn max(&self) -> u32 {
-        self.max
-    }
-    #[must_use]
-    pub fn sides(&self) -> u32 {
-        self.sides
-    }
-}
-
-/// A state of Greed.
-#[derive(Debug, Copy, Clone, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct State {
-    /// The score of the player whose turn it is.
-    active: u32,
-    /// The score of the player whose turn is up next.
-    queued: u32,
-    /// Whether this is the last turn of the game.
-    last: bool,
-}
-
-impl State {
-    #[must_use]
-    pub fn new(active: u32, queued: u32, last: bool) -> Self {
-        State {
-            active,
-            queued,
-            last,
-        }
-    }
-    #[must_use]
-    pub fn active(&self) -> u32 {
-        self.active
-    }
-    #[must_use]
-    pub fn queued(&self) -> u32 {
-        self.queued
-    }
-    #[must_use]
-    pub fn last(&self) -> bool {
-        self.last
-    }
-}
-
-/// A game of Greed
+/// Interactive game runner for Greed.
 ///
-/// A game of Greed is a two-player dice game where players take turns rolling dice and accumulating points. The goal is to have a higher end score than the opponent without exceeding the maximum score (going bust).
+/// Greed is a two-player dice game where players take turns rolling dice and accumulating points.
+/// The goal is to achieve a higher final score than the opponent without exceeding the maximum score.
 ///
-/// # Rules
+/// # Game Rules
 ///
-/// In each turn, a player can choose to roll 0+ dice. If they decide to roll a non-zero # of dice, they will roll, and the sum of their dice will be added to their score. If their score ever exceeds the maximum score, they go bust and lose the game.
+/// - **Turn structure**: Players alternate choosing how many dice to roll (0 or more)
+/// - **Scoring**: Dice sum is added to the player's total score
+/// - **Busting**: If a player's score exceeds the maximum, they lose immediately
+/// - **Ending**: Rolling 0 dice triggers the final round, giving the opponent one last turn
+/// - **Victory**: Highest non-bust score wins; equal scores result in a draw
 ///
-/// If a player decides to roll 0 dice, they will not roll and their score will remain unchanged. This triggers the last round. The other player has one more opportunity to roll.
+/// # Example Game Flow
 ///
-/// Whichever player has the highest (non-bust) score wins. If both players have the same score, the game is a draw.
+/// 1. Alice rolls 5 dice → gets 18 points (total: 18)
+/// 2. Blair rolls 4 dice → gets 15 points (total: 15)
+/// 3. Alice rolls 3 dice → gets 12 points (total: 30)
+/// 4. Blair rolls 0 dice → triggers final round (total: 15)
+/// 5. Alice gets one final turn to improve her position
 pub struct Greed {
     rng: ThreadRng,
     ruleset: Ruleset,
@@ -90,6 +44,7 @@ pub struct Greed {
 }
 
 impl Greed {
+    /// Create a new `Greed` game.
     #[must_use]
     pub fn new(max: u32, sides: u32, players: (&str, &str)) -> Self {
         Self::banner(max, sides);
@@ -102,6 +57,7 @@ impl Greed {
             turn: 0,
         }
     }
+    /// Print the game banner.
     fn banner(max: u32, sides: u32) {
         let ruleset = format!("max score: {max}, sides: {sides}");
         let padding = (WIDTH.saturating_sub(ruleset.len())) / 2;
@@ -109,6 +65,7 @@ impl Greed {
         println!("{BANNER}");
         println!("{pad}{ruleset}", pad = " ".repeat(padding));
     }
+    /// Print the game state.
     fn game_state(&self) {
         let active = format!("{}: {}", self.active_player().white(), self.state.active());
         let queued = format!("{}: {}", self.queued_player().black(), self.state.queued());
@@ -120,6 +77,7 @@ impl Greed {
             last = self.state.last
         );
     }
+    /// Print the game results.
     fn results(&self) {
         println!();
         println!("{}", "=".repeat(WIDTH));
@@ -190,6 +148,7 @@ impl Greed {
             println!("{} and {} tie!", winners[0], winners[1]);
         }
     }
+    /// Get the active player's name.
     fn active_player(&self) -> &str {
         if self.turn % 2 == 0 {
             &self.players.0
@@ -197,6 +156,7 @@ impl Greed {
             &self.players.1
         }
     }
+    /// Get the queued player's name.
     fn queued_player(&self) -> &str {
         if self.turn % 2 == 0 {
             &self.players.1
@@ -204,6 +164,7 @@ impl Greed {
             &self.players.0
         }
     }
+    /// Get the active player's score.
     fn player_0(&self) -> u32 {
         if self.turn % 2 == 0 {
             self.state.active()
@@ -211,6 +172,7 @@ impl Greed {
             self.state.queued()
         }
     }
+    /// Get the queued player's score.
     fn player_1(&self) -> u32 {
         if self.turn % 2 == 0 {
             self.state.queued()
@@ -218,6 +180,7 @@ impl Greed {
             self.state.active()
         }
     }
+    /// Simulate rolling `n` dice.
     fn roll(&mut self, n: u32) -> bool {
         let sum = (0..n).fold(0, |acc, _| {
             acc + self
@@ -237,11 +200,14 @@ impl Greed {
         }
         false
     }
-    /// Play a game of Greed
+    /// Start an interactive game of Greed between two players.
+    ///
+    /// Players take turns entering the number of dice to roll. The game continues
+    /// until one player busts or both players have stood (rolled 0 dice).
     ///
     /// # Panics
     ///
-    /// Panics if io fails to read input.
+    /// Panics if stdin input cannot be read or parsed as a valid number.
     pub fn play(max: u32, sides: u32, players: (&str, &str)) {
         let mut greed = Greed::new(max, sides, players);
 

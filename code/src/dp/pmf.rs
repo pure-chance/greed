@@ -1,6 +1,6 @@
 use rustfft::{FftPlanner, num_complex::Complex};
 
-/// Convolve two real-valued PMFs using FFT
+/// Convolve two real-valued PMFs using FFT.
 #[must_use]
 pub fn fft_convolve(a: &[f64], b: &[f64]) -> Vec<f64> {
     let size = (a.len() + b.len()).next_power_of_two();

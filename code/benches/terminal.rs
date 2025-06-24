@@ -1,5 +1,5 @@
 use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
-use greed::GreedSolver;
+use greed::DpSolver;
 
 fn terminal_states(c: &mut Criterion) {
     let mut group = c.benchmark_group("terminal_states");
@@ -8,7 +8,7 @@ fn terminal_states(c: &mut Criterion) {
 
     for ruleset in RULESETS {
         // satisfy invariants
-        let mut solver = GreedSolver::new(ruleset.0, ruleset.1);
+        let mut solver = DpSolver::new(ruleset.0, ruleset.1);
         solver.precompute_pmfs();
 
         // Benchmark: solving normal states
