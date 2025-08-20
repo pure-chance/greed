@@ -1,16 +1,22 @@
+//! The interface for a Greed `Solver`.
+
 use std::process::Command;
 
 use crate::{Action, Ruleset, State};
 
 /// Stores the policy for a Greed game as a lookup table.
 ///
-/// Maps every possible game state to its optimal action. The policy covers both terminal states (final round) and normal states, storing them in a cache-efficient flat array structure.
+/// Maps every possible game state to its optimal action. The policy covers both
+/// terminal states (final round) and normal states, storing them in a
+/// cache-efficient flat array structure.
 ///
 /// # Memory Layout
 ///
-/// States are stored in a single contiguous array indexed by: `active + (max+1) * queued + (max+1)^2 * last`
+/// States are stored in a single contiguous array indexed by: `active + (max+1)
+/// * queued + (max+1)^2 * last`
 ///
-/// This layout improves cache performance by keeping related states close together.
+/// This layout improves cache performance by keeping related states close
+/// together.
 #[derive(Debug, Clone, Default)]
 pub struct Policy {
     /// The optimal action for each state.
@@ -24,7 +30,8 @@ pub struct Policy {
 impl Policy {
     /// Creates a new empty policy table for the given maximum score.
     ///
-    /// Allocates space for all possible states: (max+1)² normal states + (max+1)² terminal states.
+    /// Allocates space for all possible states: (max+1)² normal states +
+    /// (max+1)² terminal states.
     #[must_use]
     pub fn new(max: u32) -> Self {
         let size = ((max + 1) * (max + 1) * 2) as usize;
@@ -53,7 +60,8 @@ impl Policy {
     }
     /// Iterate over all computed state-action pairs in the policy.
     ///
-    /// Yields tuples of (state, optimal_action) for every state in the game. Useful for analysis, visualization, and policy export.
+    /// Yields tuples of (state, optimal_action) for every state in the game.
+    /// Useful for analysis, visualization, and policy export.
     ///
     /// # Panics
     ///
@@ -80,7 +88,8 @@ impl Policy {
 impl Policy {
     /// Output the complete policy in human-readable format to stdout.
     ///
-    /// Prints all state-action pairs sorted by state type and scores, useful for analysis and debugging.
+    /// Prints all state-action pairs sorted by state type and scores, useful
+    /// for analysis and debugging.
     pub fn stdout(&self) {
         let mut state_action_pairs: Vec<(State, Action)> = self.iter().collect();
         state_action_pairs.sort_by_key(|(state, _)| (state.last(), state.active(), state.queued()));
@@ -137,11 +146,14 @@ impl Policy {
     }
     /// Generate SVG visualizations of the optimal policy using R scripts.
     ///
-    /// Creates temporary CSV data and executes the R visualization script to produce policy heatmaps and strategy visualizations. Requires R and necessary packages.
+    /// Creates temporary CSV data and executes the R visualization script to
+    /// produce policy heatmaps and strategy visualizations. Requires R and
+    /// necessary packages.
     ///
     /// # Errors
     ///
-    /// Returns an error if R is not available, the script fails, or file I/O fails.
+    /// Returns an error if R is not available, the script fails, or file I/O
+    /// fails.
     pub fn svg(&self) -> Result<(), Box<dyn std::error::Error>> {
         // Create temporary CSV file
         let temp_file = tempfile::NamedTempFile::new()?;
@@ -185,7 +197,8 @@ impl Policy {
 
 /// A solver for the game of Greed.
 ///
-/// The solver will find some "optimal" policy for greed with the given ruleset. The term "optimal" is defined in context of the solver's design.
+/// The solver will find some "optimal" policy for greed with the given ruleset.
+/// The term "optimal" is defined in context of the solver's design.
 pub trait Solver {
     fn ruleset(&self) -> Ruleset;
     fn policy(&mut self) -> Policy;

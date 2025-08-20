@@ -8,7 +8,10 @@ use crate::{Action, Policy, Ruleset, Solver, State};
 
 /// Optimized lookup table for dice roll probability mass functions.
 ///
-/// Precomputes and stores PMFs for all dice counts up to a maximum, enabling O(1) lookup of P(sum = k | n dice). This is the performance-critical component of the solver, as PMF lookups occur millions of times during policy computation.
+/// Precomputes and stores PMFs for all dice counts up to a maximum, enabling
+/// O(1) lookup of P(sum = k | n dice). This is the performance-critical
+/// component of the solver, as PMF lookups occur millions of times during
+/// policy computation.
 #[derive(Debug, Clone)]
 pub struct PMFLookup {
     /// Flat array containing all PMF data.
@@ -32,7 +35,10 @@ impl Default for PMFLookup {
 impl PMFLookup {
     /// Precompute all required PMFs for the given game parameters.
     ///
-    /// Generates PMFs for 0 to max_n dice, where max_n is determined by the largest number of dice that could be strategically relevant. Uses FFT convolution for efficient computation and creates optimized lookup tables.
+    /// Generates PMFs for 0 to max_n dice, where max_n is determined by the
+    /// largest number of dice that could be strategically relevant. Uses FFT
+    /// convolution for efficient computation and creates optimized lookup
+    /// tables.
     ///
     /// # Time Complexity
     ///
@@ -81,7 +87,9 @@ impl PMFLookup {
     }
     /// Fast lookup of PMF value P(sum = total | n dice).
     ///
-    /// Optimized for hot path usage with caching for small n values and unsafe memory access. Use this in performance-critical code where bounds are guaranteed.
+    /// Optimized for hot path usage with caching for small n values and unsafe
+    /// memory access. Use this in performance-critical code where bounds are
+    /// guaranteed.
     ///
     /// # Safety
     ///
@@ -98,9 +106,11 @@ impl PMFLookup {
             *self.data.get_unchecked(index)
         }
     }
-    /// Bounds-checked version of PMF lookup that returns 0.0 for invalid inputs.
+    /// Bounds-checked version of PMF lookup that returns 0.0 for invalid
+    /// inputs.
     ///
-    /// Use this when input bounds are uncertain or in non-performance-critical code. Slightly slower than `lookup()` due to bounds checking.
+    /// Use this when input bounds are uncertain or in non-performance-critical
+    /// code. Slightly slower than `lookup()` due to bounds checking.
     #[must_use]
     #[inline]
     pub fn lookup_safe(&self, n: u32, total: u32) -> f64 {
@@ -128,17 +138,24 @@ impl PMFLookup {
 
 /// Computes optimal strategies for Greed using dynamic programming.
 ///
-/// The solver determines the best action (number of dice to roll) for every possible game state by working backwards from terminal positions. This approach guarantees mathematically optimal play under the assumption that both players play perfectly.
+/// The solver determines the best action (number of dice to roll) for every
+/// possible game state by working backwards from terminal positions. This
+/// approach guarantees mathematically optimal play under the assumption that
+/// both players play perfectly.
 ///
 /// # Algorithm Overview
 ///
 /// ## Stage 1: Terminal States
 ///
-/// Computes optimal actions for final-round states where one player has already stood. Uses optimization to find the dice count that maximizes win probability.
+/// Computes optimal actions for final-round states where one player has already
+/// stood. Uses optimization to find the dice count that maximizes win
+/// probability.
 ///
 /// ## Stage 2: Normal States
 ///
-/// Uses dynamic programming to compute optimal actions for regular game states. States are processed in reverse order of total score (active + queued) to ensure all future states are already computed when needed.
+/// Uses dynamic programming to compute optimal actions for regular game states.
+/// States are processed in reverse order of total score (active + queued) to
+/// ensure all future states are already computed when needed.
 ///
 /// # Example
 ///
@@ -168,19 +185,25 @@ impl DpSolver {
             pmfs: PMFLookup::default(),
         }
     }
-    /// Precompute probability mass functions for all strategically relevant dice counts.
+    /// Precompute probability mass functions for all strategically relevant
+    /// dice counts.
     ///
-    /// Calculates an upper bound on the maximum dice needed and generates PMFs up to that limit. This is done once per solver and enables O(1) probability lookups during policy computation.
+    /// Calculates an upper bound on the maximum dice needed and generates PMFs
+    /// up to that limit. This is done once per solver and enables O(1)
+    /// probability lookups during policy computation.
     ///
     /// # Performance Impact
     ///
-    /// This is a one-time cost that dramatically speeds up the subsequent solve operations.
+    /// This is a one-time cost that dramatically speeds up the subsequent solve
+    /// operations.
     pub fn precompute_pmfs(&mut self) {
         self.pmfs = PMFLookup::precompute(self.max(), self.sides());
     }
     /// Compute the complete optimal policy for this game configuration.
     ///
-    /// Performs the full two-stage solve: terminal states first, then normal states. After completion, the policy can be queried for any valid game state.
+    /// Performs the full two-stage solve: terminal states first, then normal
+    /// states. After completion, the policy can be queried for any valid game
+    /// state.
     pub fn solve(&mut self) {
         // Precompute all PMFs
         self.precompute_pmfs();
@@ -204,7 +227,9 @@ impl DpSolver {
 impl DpSolver {
     /// Compute optimal actions for all terminal (final round) states.
     ///
-    /// Terminal states occur when one player has stood, triggering the final round. These states can be solved independently since there are no future rounds to consider.
+    /// Terminal states occur when one player has stood, triggering the final
+    /// round. These states can be solved independently since there are no
+    /// future rounds to consider.
     pub fn solve_terminal_states(&mut self) {
         let states: Vec<_> = (0..=self.max())
             .flat_map(|turn| (0..=self.max()).map(move |next| State::new(turn, next, true)))
@@ -221,7 +246,9 @@ impl DpSolver {
     }
     /// Find the optimal number of dice to roll in a terminal state.
     ///
-    /// Uses the mathematical property that terminal payoff functions are unimodal (single peak) to enable early termination when payoffs start decreasing.
+    /// Uses the mathematical property that terminal payoff functions are
+    /// unimodal (single peak) to enable early termination when payoffs start
+    /// decreasing.
     ///
     /// # Algorithm
     ///
@@ -234,7 +261,8 @@ impl DpSolver {
             return Action { n: 0, payoff: 1.0 };
         }
         if self.sides() * (state.queued() - state.active() + 1) <= self.max() - state.active() {
-            // If there is some action A where the minimum sum > queued - active AND the maximum sum is < max score - active, then that action wins 100% of the time.
+            // If there is some action A where the minimum sum > queued - active AND the
+            // maximum sum is < max score - active, then that action wins 100% of the time.
             return Action::new(state.queued() - state.active() + 1, 1.0);
         }
 
@@ -256,9 +284,11 @@ impl DpSolver {
 
         optimal_action
     }
-    /// Calculate expected payoff for rolling a specific number of dice in a terminal state.
+    /// Calculate expected payoff for rolling a specific number of dice in a
+    /// terminal state.
     ///
-    /// Computes the probability-weighted outcome considering all possible dice sums:
+    /// Computes the probability-weighted outcome considering all possible dice
+    /// sums:
     /// - Win: final score > opponent's score and ≤ max
     /// - Lose: final score < opponent's score or > max (bust)
     /// - Tie: final score = opponent's score
@@ -285,15 +315,20 @@ impl DpSolver {
 impl DpSolver {
     /// Compute optimal actions for all normal (non-terminal) game states.
     ///
-    /// Uses dynamic programming with a specific ordering constraint: states must be processed in decreasing order of (active + queued) score to ensure all reachable future states have already been computed.
+    /// Uses dynamic programming with a specific ordering constraint: states
+    /// must be processed in decreasing order of (active + queued) score to
+    /// ensure all reachable future states have already been computed.
     ///
     /// # Ordering Requirement
     ///
-    /// Normal states reference other normal states and terminal states, so they must be solved after terminal states and in the correct dependency order.
+    /// Normal states reference other normal states and terminal states, so they
+    /// must be solved after terminal states and in the correct dependency
+    /// order.
     ///
     /// # Parallelization
     ///
-    /// States within each order can be computed in parallel since they don't depend on each other.
+    /// States within each order can be computed in parallel since they don't
+    /// depend on each other.
     pub fn solve_normal_states(&mut self) {
         // Process each order sequentially (constraint of the dynamic programming).
         for order in (0..=2 * self.max()).rev() {
@@ -319,15 +354,22 @@ impl DpSolver {
             }
         }
     }
-    /// Find the optimal number of dice to roll in a normal (non-terminal) state.
+    /// Find the optimal number of dice to roll in a normal (non-terminal)
+    /// state.
     ///
-    /// Considers all possible dice counts up to a mathematically derived upper bound, computing expected payoffs that account for all possible future game states.
+    /// Considers all possible dice counts up to a mathematically derived upper
+    /// bound, computing expected payoffs that account for all possible future
+    /// game states.
     ///
     /// # Prerequisites
     ///
-    /// All reachable future states (both normal and terminal) must already be solved.
+    /// All reachable future states (both normal and terminal) must already be
+    /// solved.
     pub fn find_optimal_normal_action(&self, state: State) -> Action {
-        // The mean is $(n)(s + 1) / 2$, thus the $n$ for which the mean next score is greater than the max score is $ceil(2 * (MAX - a) / (s + 1))$. This is the same as $2 * (MAX - a + s) / (s + 1)$. This is how `max_optimal_n` is calculated.
+        // The mean is $(n)(s + 1) / 2$, thus the $n$ for which the mean next score is
+        // greater than the max score is $ceil(2 * (MAX - a) / (s + 1))$. This is the
+        // same as $2 * (MAX - a + s) / (s + 1)$. This is how `max_optimal_n` is
+        // calculated.
         let max_optimal_n = 2 * (self.max() - state.active() + self.sides()) / (self.sides() + 1);
         let (optimal_roll, optimal_payoff) = (0..=max_optimal_n)
             .rev() // If equal, the less aggressive move is taken.
@@ -336,13 +378,18 @@ impl DpSolver {
             .unwrap();
         Action::new(optimal_roll, optimal_payoff)
     }
-    /// Calculate expected payoff for rolling a specific number of dice in a normal state.
+    /// Calculate expected payoff for rolling a specific number of dice in a
+    /// normal state.
     ///
-    /// For each possible dice outcome, looks up the optimal payoff from the resulting state and computes the probability-weighted expected value. Rolling 0 dice triggers the terminal round with swapped player positions.
+    /// For each possible dice outcome, looks up the optimal payoff from the
+    /// resulting state and computes the probability-weighted expected value.
+    /// Rolling 0 dice triggers the terminal round with swapped player
+    /// positions.
     ///
     /// # Prerequisites
     ///
-    /// All reachable future states must already be solved for correct payoff lookup.
+    /// All reachable future states must already be solved for correct payoff
+    /// lookup.
     #[must_use]
     pub fn calc_normal_payoff(&self, state: State, dice_rolled: u32) -> f64 {
         if dice_rolled == 0 {
@@ -420,12 +467,14 @@ impl DpSolver {
     }
     /// Generate SVG visualizations of the optimal policy using R scripts.
     ///
-    /// Creates temporary CSV data and executes the R visualization script to produce
-    /// policy heatmaps and strategy visualizations. Requires R and necessary packages.
+    /// Creates temporary CSV data and executes the R visualization script to
+    /// produce policy heatmaps and strategy visualizations. Requires R and
+    /// necessary packages.
     ///
     /// # Errors
     ///
-    /// Returns an error if R is not available, the script fails, or file I/O fails.
+    /// Returns an error if R is not available, the script fails, or file I/O
+    /// fails.
     pub fn svg(&self) -> Result<(), Box<dyn std::error::Error>> {
         // Create temporary CSV file
         let temp_file = tempfile::NamedTempFile::new()?;
@@ -512,7 +561,8 @@ mod tests {
         let action1 = solver.policy.get(&state1);
         let action2 = solver.policy.get(&state2);
 
-        // While not perfectly symmetric due to turn order, payoffs should be roughly opposite
+        // While not perfectly symmetric due to turn order, payoffs should be roughly
+        // opposite
         assert!(
             (action1.payoff + action2.payoff).abs() < 0.5,
             "Symmetric states should have roughly opposite payoffs"

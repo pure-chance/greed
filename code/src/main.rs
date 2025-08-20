@@ -6,10 +6,12 @@
 //!
 //! # Examples
 //!
-//! ```bash
+//! ```sh
 //! # Play a standard game
 //! cargo run -- play Alice Bob
+//! ```
 //!
+//! ```sh
 //! # Solve and visualize optimal policy
 //! cargo run -- solve --max 100 --sides 6 --format svg
 //! ```

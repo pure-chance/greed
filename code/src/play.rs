@@ -1,3 +1,7 @@
+//! Interactive game runner for Greed.
+//!
+//! Allows two players to play the game interactively via a cli game.
+
 use std::cmp::Ordering;
 use std::io::{Write, stdin};
 
@@ -16,25 +20,6 @@ const BANNER: &str = r"
  ╚═════╝ ╚═╝  ╚═╝╚══════╝╚══════╝╚═════╝";
 
 /// Interactive game runner for Greed.
-///
-/// Greed is a two-player dice game where players take turns rolling dice and accumulating points.
-/// The goal is to achieve a higher final score than the opponent without exceeding the maximum score.
-///
-/// # Game Rules
-///
-/// - **Turn structure**: Players alternate choosing how many dice to roll (0 or more)
-/// - **Scoring**: Dice sum is added to the player's total score
-/// - **Busting**: If a player's score exceeds the maximum, they lose immediately
-/// - **Ending**: Rolling 0 dice triggers the final round, giving the opponent one last turn
-/// - **Victory**: Highest non-bust score wins; equal scores result in a draw
-///
-/// # Example Game Flow
-///
-/// 1. Alice rolls 5 dice → gets 18 points (total: 18)
-/// 2. Blair rolls 4 dice → gets 15 points (total: 15)
-/// 3. Alice rolls 3 dice → gets 12 points (total: 30)
-/// 4. Blair rolls 0 dice → triggers final round (total: 15)
-/// 5. Alice gets one final turn to improve her position
 pub struct Greed {
     rng: ThreadRng,
     ruleset: Ruleset,
@@ -202,8 +187,9 @@ impl Greed {
     }
     /// Start an interactive game of Greed between two players.
     ///
-    /// Players take turns entering the number of dice to roll. The game continues
-    /// until one player busts or both players have stood (rolled 0 dice).
+    /// Players take turns entering the number of dice to roll. The game
+    /// continues until one player busts or both players have stood (rolled
+    /// 0 dice).
     ///
     /// # Panics
     ///
