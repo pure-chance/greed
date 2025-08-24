@@ -2,22 +2,22 @@
 //!
 //! Provides two main commands:
 //! - `play`: Interactive game between two players
-//! - `solve`: Compute and export optimal strategies
+//! - `solve`: Compute and export optimal policies
 //!
 //! # Examples
 //!
 //! ```sh
-//! # Play a standard game
+//! # Play a standard game.
 //! cargo run -- play Alice Bob
 //! ```
 //!
 //! ```sh
-//! # Solve and visualize optimal policy
+//! # Solve and visualize optimal policy.
 //! cargo run -- solve --max 100 --sides 6 --format svg
 //! ```
 
 use clap::{Arg, Command};
-use greed::{DpSolver, Greed, Policy, Solver};
+use greed::{DpSolver, Greed, Solver};
 
 fn main() {
     let play = Command::new("play")
@@ -91,7 +91,12 @@ fn main() {
                 .help("Output format"),
         );
 
-    let cli = Command::new("greed").subcommand(play).subcommand(solve);
+    let cli = Command::new("greed")
+        .about("An optimizer / interface for the game of Greed")
+        .subcommand(play)
+        .subcommand(solve)
+        .subcommand_required(true)
+        .arg_required_else_help(true);
 
     let args = cli.get_matches();
 
@@ -119,27 +124,22 @@ fn main() {
             match format {
                 "stdout" => policy.stdout(),
                 "csv" => {
-                    let csv_filename = format!("visualize/greed_{}_{}.csv", max, sides);
+                    let csv_filename = format!("visualize/greed_{max}_{sides}.csv");
                     match policy.csv(&csv_filename) {
-                        Ok(()) => println!("Policy exported to {}", csv_filename),
-                        Err(e) => eprintln!("Failed to write CSV file: {}", e),
+                        Ok(()) => println!("Policy exported to {csv_filename}"),
+                        Err(e) => eprintln!("Failed to write CSV file: {e}"),
                     }
                 }
                 "svg" => match policy.svg() {
                     Ok(()) => println!("SVG visualizations generated in visualize/ directory"),
                     Err(e) => {
-                        eprintln!("Failed to generate SVG file: {}", e);
+                        eprintln!("Failed to generate SVG file: {e}");
                         eprintln!("Make sure R is installed and 'Rscript' is in your PATH");
                     }
                 },
                 _ => unreachable!(),
             }
         }
-        None => {}
-        Some(_) => {
-            unreachable!(
-                "Clap will short-circuit with `error: unrecognized subcommand: [subcommand]` if a subcommand is not recognized"
-            )
-        }
+        _ => unreachable!("Clap requires a subcommand to be provided"),
     }
 }

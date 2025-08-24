@@ -70,7 +70,7 @@ impl Greed {
         println!("{}", "=".repeat(WIDTH));
 
         let winners: &[&String] = if self.state.queued() > self.ruleset.max {
-            if self.turn % 2 == 0 {
+            if self.turn.is_multiple_of(2) {
                 println!(
                     "{}: {}, {}: {}",
                     self.players.0,
@@ -87,7 +87,7 @@ impl Greed {
                     self.player_1().to_string().yellow()
                 );
             }
-            if self.turn % 2 == 0 {
+            if self.turn.is_multiple_of(2) {
                 &[&self.players.0]
             } else {
                 &[&self.players.1]
@@ -135,7 +135,7 @@ impl Greed {
     }
     /// Get the active player's name.
     fn active_player(&self) -> &str {
-        if self.turn % 2 == 0 {
+        if self.turn.is_multiple_of(2) {
             &self.players.0
         } else {
             &self.players.1
@@ -143,23 +143,23 @@ impl Greed {
     }
     /// Get the queued player's name.
     fn queued_player(&self) -> &str {
-        if self.turn % 2 == 0 {
+        if self.turn.is_multiple_of(2) {
             &self.players.1
         } else {
             &self.players.0
         }
     }
     /// Get the active player's score.
-    fn player_0(&self) -> u32 {
-        if self.turn % 2 == 0 {
+    const fn player_0(&self) -> u32 {
+        if self.turn.is_multiple_of(2) {
             self.state.active()
         } else {
             self.state.queued()
         }
     }
     /// Get the queued player's score.
-    fn player_1(&self) -> u32 {
-        if self.turn % 2 == 0 {
+    const fn player_1(&self) -> u32 {
+        if self.turn.is_multiple_of(2) {
             self.state.queued()
         } else {
             self.state.active()
@@ -195,7 +195,7 @@ impl Greed {
     ///
     /// Panics if stdin input cannot be read or parsed as a valid number.
     pub fn play(max: u32, sides: u32, players: (&str, &str)) {
-        let mut greed = Greed::new(max, sides, players);
+        let mut greed = Self::new(max, sides, players);
 
         loop {
             println!();

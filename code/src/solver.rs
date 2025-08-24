@@ -1,4 +1,8 @@
 //! The interface for a Greed `Solver`.
+//!
+//! The greed solver computes the optimal policy for a game of Greed with some
+//! ruleset (m, s). It has two implementations, a dynamic programming solver
+//! (dp), and a Reinforcement Learning solver (rl).
 
 use std::process::Command;
 
@@ -12,8 +16,8 @@ use crate::{Action, Ruleset, State};
 ///
 /// # Memory Layout
 ///
-/// States are stored in a single contiguous array indexed by: `active + (max+1)
-/// * queued + (max+1)^2 * last`
+/// States are stored in a single contiguous array indexed by: active + (max+1)
+/// * queued + (max+1)^2 * last
 ///
 /// This layout improves cache performance by keeping related states close
 /// together.
@@ -60,8 +64,8 @@ impl Policy {
     }
     /// Iterate over all computed state-action pairs in the policy.
     ///
-    /// Yields tuples of (state, optimal_action) for every state in the game.
-    /// Useful for analysis, visualization, and policy export.
+    /// Yields tuples of (`state`, `optimal_action`) for every state in the
+    /// game. Useful for analysis, visualization, and policy export.
     ///
     /// # Panics
     ///

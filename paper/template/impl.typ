@@ -22,18 +22,18 @@
   set page(
     columns: 2,
     paper: "a4",
-    margin: (x: 1.5cm, y: 1.5cm)
+    margin: (x: 1.25cm, y: 1.25cm)
   )
 
   // Configure text properties --
-  set text(size: 10pt, weight: "regular")
+  set text(font: "Linux Libertine", size: 10pt, weight: "regular")
 
   // Configure paragraph properties --
   set par(spacing: 0.45em, justify: true, first-line-indent: 1em, leading: 0.45em)
 
   // Configure heading properties --
-  set heading(numbering: "I.A.")
-  show heading: set text(style: "italic", weight: "regular")
+  set heading(numbering: "1.")
+  show heading: set text(weight: "bold")
   show heading: set block(above: 2em)
 
   // Configure figures & captions --
@@ -60,20 +60,18 @@
   // frontmatter --
   place(top, float: true, scope: "parent", clearance: 4em)[
     #block(width: 100%)[
+      #line(length: 100%)
       #set align(center)
       #text(size: 2em, weight: "bold")[#title]
       #v(1em)
       #authors.join(", ")
+      #line(length: 100%)
     ]
   ]
 
   // abstract --
   if abstract != none [
-    #[
-      #set align(center)
-      #heading(level: 1, numbering: none)[---Abstract---]
-    ]
-    #abstract
+    #strong[Abstract]---#h(weak: true, 0pt)#abstract
   ]
 
   // matter --

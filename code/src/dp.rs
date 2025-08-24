@@ -1,9 +1,18 @@
+//! Dynamic Programming Solver for Greed.
+//!
+//! The dynamic programming solver computes the optimal policy for a game of
+//! Greed with some ruleset (m, s). It does this by working backwards. It first
+//! finds the optimal action for the last (terminal) move. It then works
+//! backwards to find the optimal action for each preceding move, using the
+//! previously computed optimal actions to determine the best action for each
+//! state. It does this repeatedly until reaching the initial state.
+
 use std::cmp::Ordering;
 use std::process::Command;
 
 use rayon::prelude::*;
+use rustfft::{FftPlanner, num_complex::Complex};
 
-use super::pmf::fft_convolve;
 use crate::{Action, Policy, Ruleset, Solver, State};
 
 /// Optimized lookup table for dice roll probability mass functions.
@@ -13,7 +22,7 @@ use crate::{Action, Policy, Ruleset, Solver, State};
 /// component of the solver, as PMF lookups occur millions of times during
 /// policy computation.
 #[derive(Debug, Clone)]
-pub struct PMFLookup {
+struct PMFLookup {
     /// Flat array containing all PMF data.
     data: Box<[f64]>,
     /// Starting offsets for each n-dice PMF.
@@ -35,14 +44,10 @@ impl Default for PMFLookup {
 impl PMFLookup {
     /// Precompute all required PMFs for the given game parameters.
     ///
-    /// Generates PMFs for 0 to max_n dice, where max_n is determined by the
+    /// Generates PMFs for 0 to `max_n` dice, where `max_n` is determined by the
     /// largest number of dice that could be strategically relevant. Uses FFT
     /// convolution for efficient computation and creates optimized lookup
     /// tables.
-    ///
-    /// # Time Complexity
-    ///
-    /// O(max_n × sides × log(sides)) due to FFT operations.
     #[must_use]
     pub fn precompute(max: u32, sides: u32) -> Self {
         let max_n = (2 * (max + sides) / (sides + 1)).max(max + 1);
@@ -53,7 +58,7 @@ impl PMFLookup {
         temp_pmfs.push(vec![1.0]); // n=0 case
 
         for n in 1..=max_n {
-            temp_pmfs.push(fft_convolve(&temp_pmfs[(n - 1) as usize], &dice_pmf));
+            temp_pmfs.push(Self::fft_convolve(&temp_pmfs[(n - 1) as usize], &dice_pmf));
         }
 
         // Validate PMFs sum to 1.0
@@ -62,15 +67,13 @@ impl PMFLookup {
                 let sum: f64 = pmf.iter().sum();
                 debug_assert!(
                     (sum - 1.0).abs() < 1e-10,
-                    "PMF for {} dice doesn't sum to 1.0: {}",
-                    n,
-                    sum
+                    "PMF for {n} dice doesn't sum to 1.0: {sum}",
                 );
             }
         }
 
         // Second pass: flatten into single array with offset table
-        let total_size: usize = temp_pmfs.iter().map(|v| v.len()).sum();
+        let total_size: usize = temp_pmfs.iter().map(Vec::len).sum();
         let mut data = Vec::with_capacity(total_size);
         let mut offsets = Vec::with_capacity((max_n + 1) as usize);
 
@@ -85,6 +88,30 @@ impl PMFLookup {
             max_n,
         }
     }
+    /// Convolve two real-valued PMFs using FFT.
+    #[must_use]
+    pub fn fft_convolve(a: &[f64], b: &[f64]) -> Vec<f64> {
+        let size = (a.len() + b.len()).next_power_of_two();
+        let mut planner = FftPlanner::new();
+        let fft = planner.plan_fft_forward(size);
+        let ifft = planner.plan_fft_inverse(size);
+
+        let mut fa: Vec<Complex<f64>> = a.iter().map(|&x| Complex::new(x, 0.0)).collect();
+        fa.resize(size, Complex::new(0.0, 0.0));
+        let mut fb: Vec<Complex<f64>> = b.iter().map(|&x| Complex::new(x, 0.0)).collect();
+        fb.resize(size, Complex::new(0.0, 0.0));
+
+        fft.process(&mut fa);
+        fft.process(&mut fb);
+
+        for (x, y) in fa.iter_mut().zip(fb.iter()) {
+            *x *= *y;
+        }
+
+        ifft.process(&mut fa);
+        fa.truncate(a.len() + b.len() - 1);
+        fa.iter().map(|x| (x.re / size as f64).max(0.0)).collect()
+    }
     /// Fast lookup of PMF value P(sum = total | n dice).
     ///
     /// Optimized for hot path usage with caching for small n values and unsafe
@@ -93,46 +120,18 @@ impl PMFLookup {
     ///
     /// # Safety
     ///
-    /// Caller must ensure n ≤ max_n and total ≥ n.
+    /// Caller must ensure `n` ≤ `max_n` and `total` ≥ `n`.
     #[must_use]
     #[inline]
     pub fn lookup(&self, n: u32, total: u32) -> f64 {
         debug_assert!(n <= self.max_n, "n={} exceeds max_n={}", n, self.max_n);
-        debug_assert!(total >= n, "total={} less than n={}", total, n);
+        debug_assert!(total >= n, "total={total} less than n={n}");
 
         unsafe {
             let offset = *self.offsets.get_unchecked(n as usize);
             let index = offset + (total - n) as usize;
             *self.data.get_unchecked(index)
         }
-    }
-    /// Bounds-checked version of PMF lookup that returns 0.0 for invalid
-    /// inputs.
-    ///
-    /// Use this when input bounds are uncertain or in non-performance-critical
-    /// code. Slightly slower than `lookup()` due to bounds checking.
-    #[must_use]
-    #[inline]
-    pub fn lookup_safe(&self, n: u32, total: u32) -> f64 {
-        if n > self.max_n || total < n {
-            return 0.0;
-        }
-
-        let offset = self.offsets[n as usize];
-        let index = offset + (total - n) as usize;
-
-        if index < self.data.len() {
-            self.data[index]
-        } else {
-            0.0
-        }
-    }
-    /// Returns memory usage statistics for the PMF lookup table.
-    #[must_use]
-    pub fn memory_usage(&self) -> (usize, usize) {
-        let data_bytes = self.data.len() * std::mem::size_of::<f64>();
-        let offset_bytes = self.offsets.len() * std::mem::size_of::<usize>();
-        (data_bytes, offset_bytes)
     }
 }
 
@@ -160,10 +159,9 @@ impl PMFLookup {
 /// # Example
 ///
 /// ```rust
-/// let mut solver = GreedSolver::new(100, 6);
+/// use greed::dp::DpSolver;
+/// let mut solver = DpSolver::new(100, 6);
 /// solver.solve();
-/// let action = solver.policy.get(&State::new(50, 45, false));
-/// println!("Optimal: roll {} dice (payoff: {:.3})", action.n, action.payoff);
 /// ```
 #[derive(Debug, Clone, Default)]
 pub struct DpSolver {
@@ -179,7 +177,7 @@ impl DpSolver {
     /// Create a new solver for the specified game parameters.
     #[must_use]
     pub fn new(max: u32, sides: u32) -> Self {
-        DpSolver {
+        Self {
             ruleset: Ruleset::new(max, sides),
             policy: Policy::new(max),
             pmfs: PMFLookup::default(),
@@ -214,12 +212,12 @@ impl DpSolver {
     }
     /// Returns the maximum score for this game configuration.
     #[must_use]
-    pub fn max(&self) -> u32 {
+    pub const fn max(&self) -> u32 {
         self.ruleset.max()
     }
     /// Returns the number of sides on each die for this game configuration.
     #[must_use]
-    pub fn sides(&self) -> u32 {
+    pub const fn sides(&self) -> u32 {
         self.ruleset.sides()
     }
 }
@@ -255,6 +253,7 @@ impl DpSolver {
     /// + Handle obvious cases (already winning, guaranteed win scenarios)
     /// + Search from minimum viable dice count upward
     /// + Stop when payoff decreases consistently or search limit reached
+    #[must_use]
     pub fn find_optimal_terminal_action(&self, state: State) -> Action {
         if state.active() > state.queued() {
             // If already ahead, doing nothing wins 100% of the time.
@@ -292,6 +291,7 @@ impl DpSolver {
     /// - Win: final score > opponent's score and ≤ max
     /// - Lose: final score < opponent's score or > max (bust)
     /// - Tie: final score = opponent's score
+    #[must_use]
     pub fn calc_terminal_payoff(&self, state: State, dice_rolled: u32) -> f64 {
         if dice_rolled == 0 {
             return match state.active().cmp(&state.queued()) {
@@ -361,10 +361,11 @@ impl DpSolver {
     /// bound, computing expected payoffs that account for all possible future
     /// game states.
     ///
-    /// # Prerequisites
+    /// # Panics
     ///
     /// All reachable future states (both normal and terminal) must already be
     /// solved.
+    #[must_use]
     pub fn find_optimal_normal_action(&self, state: State) -> Action {
         // The mean is $(n)(s + 1) / 2$, thus the $n$ for which the mean next score is
         // greater than the max score is $ceil(2 * (MAX - a) / (s + 1))$. This is the
@@ -386,7 +387,7 @@ impl DpSolver {
     /// Rolling 0 dice triggers the terminal round with swapped player
     /// positions.
     ///
-    /// # Prerequisites
+    /// # Panics
     ///
     /// All reachable future states must already be solved for correct payoff
     /// lookup.
@@ -404,7 +405,7 @@ impl DpSolver {
             } else {
                 -1.0
             };
-            acc + probability * payoff
+            probability.mul_add(payoff, acc)
         })
     }
 }
@@ -519,7 +520,7 @@ impl DpSolver {
 impl Solver for DpSolver {
     /// Returns the ruleset used by the solver.
     fn ruleset(&self) -> Ruleset {
-        self.ruleset.clone()
+        self.ruleset
     }
     /// Returns the policy computed by the solver.
     fn policy(&mut self) -> Policy {

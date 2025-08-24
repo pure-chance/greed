@@ -76,17 +76,17 @@ impl Default for Ruleset {
 impl Ruleset {
     /// Create a new ruleset.
     #[must_use]
-    pub fn new(max: u32, sides: u32) -> Self {
+    pub const fn new(max: u32, sides: u32) -> Self {
         Self { max, sides }
     }
     /// Get the maximum score allowed before busting.
     #[must_use]
-    pub fn max(&self) -> u32 {
+    pub const fn max(&self) -> u32 {
         self.max
     }
     /// Get the number of sides on each die.
     #[must_use]
-    pub fn sides(&self) -> u32 {
+    pub const fn sides(&self) -> u32 {
         self.sides
     }
 }
@@ -110,8 +110,8 @@ pub struct State {
 impl State {
     /// Create a new state.
     #[must_use]
-    pub fn new(active: u32, queued: u32, last: bool) -> Self {
-        State {
+    pub const fn new(active: u32, queued: u32, last: bool) -> Self {
+        Self {
             active,
             queued,
             last,
@@ -119,16 +119,16 @@ impl State {
     }
     /// Get the score of the player whose turn it is.
     #[must_use]
-    pub fn active(&self) -> u32 {
+    pub const fn active(&self) -> u32 {
         self.active
     }
     /// Get the score of the player whose turn is up next.
     #[must_use]
-    pub fn queued(&self) -> u32 {
+    pub const fn queued(&self) -> u32 {
         self.queued
     }
     #[must_use]
-    pub fn last(&self) -> bool {
+    pub const fn last(&self) -> bool {
         self.last
     }
 }
@@ -158,17 +158,17 @@ impl Action {
     /// Create a new optimal action with a given number of dice and expected
     /// payoff.
     #[must_use]
-    pub fn new(n: u32, payoff: f64) -> Self {
+    pub const fn new(n: u32, payoff: f64) -> Self {
         Self { n, payoff }
     }
     /// Get the number of dice to roll.
     #[must_use]
-    pub fn n(&self) -> u32 {
+    pub const fn n(&self) -> u32 {
         self.n
     }
     /// Get the expected payoff.
     #[must_use]
-    pub fn payoff(&self) -> f64 {
+    pub const fn payoff(&self) -> f64 {
         self.payoff
     }
 }
