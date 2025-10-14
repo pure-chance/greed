@@ -15,7 +15,6 @@
 // document ====================================================================
 
 = Introduction <intro>
-
 Games of chance and choice have long fascinated both players and theorists. From the strategic depth of poker to the probabilistic tension of blackjack, such games offer fertile ground for mathematical and algorithmic analysis. In this work, we turn our attention to Greed—a deceptively simple dice game with rich strategic structure.
 
 Greed blends elements of push-your-luck decision-making and competitive scoring. At every step, players must weigh their chances, choosing how much they are willing to risk a bust, or worse, being overtaken in the last round.
@@ -23,7 +22,6 @@ Greed blends elements of push-your-luck decision-making and competitive scoring.
 In this paper, we formalize Greed as a Markov Decision Process (MDP) and compute its optimal policy (strategy) using dynamic programming. We begin by precisely stating the rules of the game, then model it as an MDP by defining its states, actions, and transitions. Next, we develop an efficient function for computing the probability mass function (PMF) of dice sums, a core component of the game. With this foundation, we compute the optimal policy and introduce performance optimizations to handle the game’s large state space. Finally, we analyze the resulting strategy and discuss implications and extensions.
 
 = Rules <rules>
-
 In order to play Greed, first the players must agree on a ruleset.
 
 #definition(title: "Ruleset")[
@@ -63,7 +61,6 @@ With the ruleset defined, the game can begin.
 ]
 
 = Mathematical Framework <framework>
-
 #definition(title: "State")[
   A _state_ $S$ of Greed is defined by the 4-tuple ($a$, $b$, $t$, $l$), where $a <= M$ is Alice's score, $b <= M$ is Blair's score, $t in {"Alice", "Blair"}$ indicates whose turn it is, and $l in {"true", "false"}$ is a boolean that indicates whether the game is in the final round.
 ]
@@ -87,9 +84,9 @@ Lastly, we define a transition function, which models the probability of transit
 
   For states $s = (a, q, l)$ and $s' = (a', q', l')$ in $S$, and action $a in A$, the transition probability $f(s, s', a)$ is $
      cases(
-       1.0 &"if" s' = (q, a, "T") and a = 0 \
-       bold(p)_n (a' - a) &"if " s' = (q, a', l) and a >= 0 \
-       0.0 &"otherwise"
+       1.0 &"if" s' = (q, a, "T") and a = 0,
+       bold(p)_n (a' - a) &"if " s' = (q, a', l) and a >= 0,
+       0.0 &"otherwise",
      )
   $ where $bold(p)_n (k)$ denotes the probability that the sum of $n$ dice equals $k$.
 ]
@@ -99,7 +96,6 @@ Notice that many possible invalid states exist but have probability $0.0$ either
 A game of greed is defined by its transition function $f: S times A -> [0, 1]$. This is a result of the nature of greed as a Markov Decision Process (MDP), which is also defined by the transition function. Because Greed is a MDP, it inherits all the properties of an MDP, including its memoryless property, and therefore its ability to be solved via dynamic programming, which we'll prove and apply in @policy.
 
 = PMF <pmf>
-
 Computing the probability mass function (pmf) of dice sums is essential for modeling Greed, as the game’s scoring depends on the distribution of outcomes from rolling multiple dice. Specifically, we require the pmf of the sum of $n$ independent and identically distributed (i.i.d.) discrete uniform random variables on the set ${1, 2, ..., s}$---that is, the total when rolling $n$ fair $s$-sided dice. A closed-form expression for this distribution is known @analyticscheck2020dice:
 
 #theorem(title: "PMF of dice sum")[
@@ -122,7 +118,6 @@ For $n > 1$ dice, we compute recursively via convolution: $
 $
 
 = Policy Solver <policy>
-
 It's worth expanding on the concept of a payoff. In the rules, the payoff function occurs only at the conclusion of the game. We generalize the payoff function to include intermediate states, allowing us to optimize the expected payoff at each step.
 
 #remark[
@@ -161,14 +156,13 @@ To find this optimal policy, we use *minimax via dynamic programming*. This appr
 Practically, this means we memoize the results of previously computed states to avoid redundant calculations. On an implementation level, instead we simply evaluate states in reverse order, using the structure of the game to build up the full value and policy functions.
 
 == Terminal States
-
 For terminal states, the problem is simple: find some $n$ that maximizes the probability that your sum $t$ will yield $a + t in [q, M]$. More precisely, for a game state $(a, q, T)$ we optimize the expected payoff
 
 #equation[$
   n_star := max_(n in [0, oo)) sum_(t = n)^(s n) cases(
-    1 &"if" q < a + t <= M \
-    0 &"if" a + t = q \
-    -1 &"otherwise"
+    1 &"if" q < a + t <= M,
+    0 &"if" a + t = q,
+    -1 &"otherwise",
   )
 $]
 
@@ -199,7 +193,6 @@ Let $s = (a, q, T), s' = (a, q + t, T)$ where $t > 0$. Let $n_star$ be the optim
 Exploiting this property, we can strategically start from $(M, 0, T)$ and evaluate each row $(M, 0, T), (M, 1, T), ..., (M, M, T)$, using the previous $n_star$ as the starting point. This then repeats for each column as well.
 
 == Normal States
-
 For normal states, optimization is more complex, as it becomes necessary to consider future states when optimizing the policy. As already mentioned, the way to accomplish this task is to use dynamic programming, starting from high scores and going backwards.
 
 Consider the max score $(M, M, F)$. In this state, the active player is forced to roll $0$ dice, or otherwise lose. Thus the _only_ potentially non-negative payoff is to roll $0$ dice; this is the optimal policy. The payoff for the opponent is whatever the payoff of the terminal state $(M, M, T)$. Since this is a zero-sum game, our score is the negative of the opponent's score.
@@ -215,7 +208,6 @@ This continues until $(0, 0, F)$, at which point all normal states have been com
 Like with terminal states, it's not possible to try all possible $n$, but luckily @prop:upper-bound-actions works for normal states as well. There is no massive tricks here _as of yet_, but it is possible to compute certain states (e.g., $(M - 1, M, F), (M, M - 1, F)$) in parallel since they will never overlap.
 
 = Optimal Policy Analysis <analysis>
-
 With the theoretical framework established, we implemented the dynamic programming algorithm to compute optimal policies for Greed across various rulesets. Our analysis reveals fascinating strategic patterns that emerge from the interplay between risk and reward in this deceptively simple game.
 
 The following visualizations present the computed optimal policies and their associated payoffs for both terminal and normal game states. These visualizations provide many insights into the strategic principles of Greed and what those principles say about the game itself.
@@ -249,7 +241,6 @@ The following visualizations present the computed optimal policies and their ass
 ]
 
 == A Game of Chicken
-
 Looking at @fig:terminal-payoffs, it's clear that you should absolutely not stop rolling dice if you are not already very close to the max score, because otherwise the opponent can easily catch up and win. The most notable feature is the band of balanced endgames (the white band), which follows a square-root function. Relating the terminal payoffs to the normal states, notice that the (bad) red area over the white band is the inverse of the (good) blue area for the normal payoffs. This is expected, since normal states in the positive region will lead the opponent to the corresponding negative region in the terminal states.
 
 Another detail worth mentioning is the 4 white tiles at $(100, 100, F), (99, 99, F), ..., (96, 96, F)$ These states are ties, because rolling even one die will result in a bust at least half the time.
@@ -257,17 +248,14 @@ Another detail worth mentioning is the 4 white tiles at $(100, 100, F), (99, 99,
 Adjacent to all this, notice that the blue band for normal states corresponds to the white band on the normal rolls, signifying that when you have even a little advantage, you should aim to end the game on that turn. This implies that the game is very endgame focused, and the aim is to gain an advantage and end the game is fast as possible.
 
 == The Opening
-
 Looking instead at the normal states, notice that the payoffs for normal states are _slightly_ skewed towards the active player. This means that in the early game, it's good to be "in the drivers seat", even if you're slightly behind. Of course this means that when you roll, now the opponent may be the one with the slight edge.
 
 == Optimal Action Oddities
-
 From an optimal action perspective, we see linear gradients, which is intuitive. After all, the goal is to either get as close to the maximum (for normal states) or between the opponent and the max (for terminal states). What's interesting are the edges, which tend to have odd values. In the terminal states with high $n$, we get some bizarre artifacts, likely a result of compounding floating-point precision errors.
 
 There are also some odd $n$ values, jumping back and forth between neighboring $n$. This is in part caused by the interaction of the sides and fixed maximum. However, it is likely also in part floating-point error or even (maybe) implementation oversights.
 
 == Normal States Are Bizarre
-
 Of all the visualizations, the normal states are the most wild. They exhibit a complex behavior near the maximum (for both players), and have odd bands that are exactly the width as the number of sides on each die.
 
 First considering the bands, this again demonstrates the behavior between the sides and fixed maximum. If you get lucky and the max sum is only 0, or 1 over the max, then the payoff is better than if the maximum sum is 4 or 5 over the max. This repeats every $s$, since that's when the pattern repeats.
@@ -283,7 +271,6 @@ Both these behaviors are easier to see in @fig:normal-payoffs-500-20 compared to
 ) <fig:normal-payoffs-500-20>
 
 = Conclusion <conclusion>
-
 Our analysis revealed that Greed is fundamentally a game of careful endgame positioning---while mid-game states tend to be balanced, securing even a small advantage can be decisive if leveraged to end the game immediately. The visualizations of optimal policies highlighted interesting strategic patterns, including the critical square-root boundary between winning and losing terminal positions. These insights not only deepen our theoretical understanding of Greed but also provide practical guidance for optimal play.
 
 Future work could explore extensions to multiplayer variants or investigate the impact of different scoring rules on optimal strategies. There is also, I suspect, more room for performance improvements. However, the current improvements are enough for the goals of this project.
