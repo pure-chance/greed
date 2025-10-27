@@ -25,7 +25,7 @@
   show heading.where(level: 1): set text(size: 13pt)
   show heading: it => {
     if it.level >= 2 {
-      set text(size: 11pt, style: "italic", weight: "regular")
+      set text(size: 11pt, style: "normal", weight: "bold")
       let heading = counter(heading).display(it.numbering) + h(0.6em) + it.body
       block(below: 0pt) + heading + [.]
     } else {
