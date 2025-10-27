@@ -1,14 +1,39 @@
-//! Interactive game runner for Greed.
-//!
-//! Allows two players to play the game interactively via a cli game.
-
 use std::cmp::Ordering;
 use std::io::{Write, stdin};
 
+use clap::{Arg, Command};
 use colored::Colorize;
 use rand::{distr::Uniform, prelude::*};
 
-use crate::{Ruleset, State};
+fn main() {
+    let cli = Command::new("play")
+        .about("An interactive game of Greed")
+        .arg(
+            Arg::new("max")
+                .short('m')
+                .long("max")
+                .value_name("MAX")
+                .help("Maximum score")
+                .value_parser(clap::value_parser!(u16))
+                .default_value("100"),
+        )
+        .arg(
+            Arg::new("sides")
+                .short('s')
+                .long("sides")
+                .value_name("SIDES")
+                .help("Number of sides on each die")
+                .value_parser(clap::value_parser!(u16))
+                .default_value("6"),
+        );
+
+    let args = cli.get_matches();
+
+    let max = *args.get_one::<u16>("max").unwrap();
+    let sides = *args.get_one::<u16>("sides").unwrap();
+
+    Greed::play(max, sides, ("P1", "P2"));
+}
 
 const WIDTH: usize = 41; // based on banner width
 const BANNER: &str = r"
@@ -25,13 +50,13 @@ pub struct Greed {
     ruleset: Ruleset,
     players: (String, String),
     state: State,
-    turn: u32,
+    turn: u16,
 }
 
 impl Greed {
     /// Create a new `Greed` game.
     #[must_use]
-    pub fn new(max: u32, sides: u32, players: (&str, &str)) -> Self {
+    pub fn new(max: u16, sides: u16, players: (&str, &str)) -> Self {
         Self::banner(max, sides);
 
         Self {
@@ -43,7 +68,7 @@ impl Greed {
         }
     }
     /// Print the game banner.
-    fn banner(max: u32, sides: u32) {
+    fn banner(max: u16, sides: u16) {
         let ruleset = format!("max score: {max}, sides: {sides}");
         let padding = (WIDTH.saturating_sub(ruleset.len())) / 2;
 
@@ -52,14 +77,15 @@ impl Greed {
     }
     /// Print the game state.
     fn game_state(&self) {
-        let active = format!("{}: {}", self.active_player().white(), self.state.active());
-        let queued = format!("{}: {}", self.queued_player().black(), self.state.queued());
+        let final_flag = if self.state.last { " [FINAL]" } else { "" };
         println!(
-            "round {round}: {active}, {queued}, last: {last}",
-            round = self.turn,
-            active = active.bold(),
-            queued = queued.italic(),
-            last = self.state.last
+            "round {}: {}: {}, {}: {}{}",
+            self.turn,
+            self.active_player().white(),
+            self.state.active(),
+            self.queued_player().black().italic(),
+            self.state.queued(),
+            final_flag
         );
     }
     /// Print the game results.
@@ -70,37 +96,37 @@ impl Greed {
         println!("{}", "=".repeat(WIDTH));
 
         let winners: &[&String] = if self.state.queued() > self.ruleset.max {
-            if self.turn.is_multiple_of(2) {
+            if self.turn % 2 == 0 {
                 println!(
                     "{}: {}, {}: {}",
                     self.players.0,
-                    self.player_0().to_string().yellow(),
+                    self.player_1().to_string().yellow(),
                     self.players.1,
-                    self.player_1().to_string().red()
+                    self.player_2().to_string().red()
                 );
             } else {
                 println!(
                     "{}: {}, {}: {}",
                     self.players.0,
-                    self.player_0().to_string().red(),
+                    self.player_1().to_string().red(),
                     self.players.1,
-                    self.player_1().to_string().yellow()
+                    self.player_2().to_string().yellow()
                 );
             }
-            if self.turn.is_multiple_of(2) {
+            if self.turn % 2 == 0 {
                 &[&self.players.0]
             } else {
                 &[&self.players.1]
             }
         } else {
-            match self.player_0().cmp(&self.player_1()) {
+            match self.player_1().cmp(&self.player_2()) {
                 Ordering::Greater => {
                     println!(
                         "{}: {}, {}: {}",
                         self.players.0,
-                        self.player_0().to_string().yellow(),
+                        self.player_1().to_string().yellow(),
                         self.players.1,
-                        self.player_1().to_string().white()
+                        self.player_2().to_string().white()
                     );
                     &[&self.players.0]
                 }
@@ -108,9 +134,9 @@ impl Greed {
                     println!(
                         "{}: {}, {}: {}",
                         self.players.0,
-                        self.player_0().to_string().white(),
+                        self.player_1().to_string().white(),
                         self.players.1,
-                        self.player_1().to_string().yellow()
+                        self.player_2().to_string().yellow()
                     );
                     &[&self.players.1]
                 }
@@ -118,9 +144,9 @@ impl Greed {
                     println!(
                         "{}: {}, {}: {}",
                         self.players.0,
-                        self.player_0().to_string().yellow(),
+                        self.player_1().to_string().yellow(),
                         self.players.1,
-                        self.player_1().to_string().yellow()
+                        self.player_2().to_string().yellow()
                     );
                     &[&self.players.0, &self.players.1]
                 }
@@ -135,7 +161,7 @@ impl Greed {
     }
     /// Get the active player's name.
     fn active_player(&self) -> &str {
-        if self.turn.is_multiple_of(2) {
+        if self.turn % 2 == 0 {
             &self.players.0
         } else {
             &self.players.1
@@ -143,30 +169,30 @@ impl Greed {
     }
     /// Get the queued player's name.
     fn queued_player(&self) -> &str {
-        if self.turn.is_multiple_of(2) {
+        if self.turn % 2 == 0 {
             &self.players.1
         } else {
             &self.players.0
         }
     }
     /// Get the active player's score.
-    const fn player_0(&self) -> u32 {
-        if self.turn.is_multiple_of(2) {
+    fn player_1(&self) -> u16 {
+        if self.turn % 2 == 0 {
             self.state.active()
         } else {
             self.state.queued()
         }
     }
     /// Get the queued player's score.
-    const fn player_1(&self) -> u32 {
-        if self.turn.is_multiple_of(2) {
+    fn player_2(&self) -> u16 {
+        if self.turn % 2 == 0 {
             self.state.queued()
         } else {
             self.state.active()
         }
     }
     /// Simulate rolling `n` dice.
-    fn roll(&mut self, n: u32) -> bool {
+    fn roll(&mut self, n: u16) -> bool {
         let sum = (0..n).fold(0, |acc, _| {
             acc + self
                 .rng
@@ -194,8 +220,8 @@ impl Greed {
     /// # Panics
     ///
     /// Panics if stdin input cannot be read or parsed as a valid number.
-    pub fn play(max: u32, sides: u32, players: (&str, &str)) {
-        let mut greed = Self::new(max, sides, players);
+    pub fn play(max: u16, sides: u16, players: (&str, &str)) {
+        let mut greed = Greed::new(max, sides, players);
 
         loop {
             println!();
@@ -206,12 +232,92 @@ impl Greed {
             print!("{} rolls: ", greed.active_player().green());
             std::io::stdout().flush().unwrap();
             stdin().read_line(&mut input).unwrap();
-            let n = input.trim().parse::<u32>().unwrap();
+            let n = input.trim().parse::<u16>().unwrap();
 
             // Roll dice
             if greed.roll(n) {
                 break;
             }
         }
+    }
+}
+
+/// Game rules for Greed.
+///
+/// Defines the maximum allowable score and the number of sides on each die.
+/// The standard ruleset is (100, 6) representing a maximum score of 100 with
+/// 6-sided dice.
+#[derive(Debug, Copy, Clone)]
+pub struct Ruleset {
+    /// Maximum score allowed before busting (typically 100).
+    max: u16,
+    /// The number of sides on each die (typically 6).
+    sides: u16,
+}
+
+impl Default for Ruleset {
+    fn default() -> Self {
+        Self { max: 100, sides: 6 }
+    }
+}
+
+impl Ruleset {
+    /// Create a new ruleset.
+    #[must_use]
+    pub const fn new(max: u16, sides: u16) -> Self {
+        Self { max, sides }
+    }
+    /// Get the maximum score allowed before busting.
+    #[must_use]
+    pub const fn max(&self) -> u16 {
+        self.max
+    }
+    /// Get the number of sides on each die.
+    #[must_use]
+    pub const fn sides(&self) -> u16 {
+        self.sides
+    }
+}
+
+/// A game state in Greed, representing scores and turn information.
+///
+/// States are represented from the perspective of the current player:
+/// - `active`: Current player's score
+/// - `queued`: Next player's score
+/// - `last`: Whether we're in the final round (triggered when a player stands)
+#[derive(Debug, Copy, Clone, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct State {
+    /// The score of the player whose turn it is.
+    active: u16,
+    /// The score of the player whose turn is up next.
+    queued: u16,
+    /// Whether this is the final round of the game.
+    last: bool,
+}
+
+impl State {
+    /// Create a new state.
+    #[must_use]
+    pub const fn new(active: u16, queued: u16, last: bool) -> Self {
+        Self {
+            active,
+            queued,
+            last,
+        }
+    }
+    /// Return the score of actively rolling player.
+    #[must_use]
+    pub const fn active(&self) -> u16 {
+        self.active
+    }
+    /// Return the score queued player.
+    #[must_use]
+    pub const fn queued(&self) -> u16 {
+        self.queued
+    }
+    /// Return the flag indicating whether this is the final round of the game.
+    #[must_use]
+    pub const fn last(&self) -> bool {
+        self.last
     }
 }

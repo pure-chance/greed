@@ -1,10 +1,10 @@
 use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
-use greed::DpSolver;
+use greed_solve::{DpSolver, State};
 
 fn normal_states(c: &mut Criterion) {
     let mut group = c.benchmark_group("normal_states");
 
-    const RULESETS: [(u32, u32); 3] = [(25, 4), (100, 6), (250, 20)];
+    const RULESETS: [(u16, u16); 3] = [(25, 4), (100, 6), (250, 20)];
 
     for ruleset in RULESETS {
         // satisfy invariants
@@ -28,9 +28,7 @@ fn normal_states(c: &mut Criterion) {
             ),
             &ruleset,
             |b, _| {
-                b.iter(|| {
-                    solver.find_optimal_normal_action(black_box(greed::State::new(10, 10, false)))
-                });
+                b.iter(|| solver.find_optimal_normal_action(black_box(State::new(10, 10, false))));
             },
         );
 
@@ -41,7 +39,7 @@ fn normal_states(c: &mut Criterion) {
             |b, _| {
                 b.iter(|| {
                     solver.calc_normal_payoff(
-                        black_box(greed::State::new(ruleset.0 / 2, ruleset.1 / 2, false)),
+                        black_box(State::new(ruleset.0 / 2, ruleset.1 / 2, false)),
                         3,
                     )
                 });

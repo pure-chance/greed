@@ -8,132 +8,12 @@
 //! state. It does this repeatedly until reaching the initial state.
 
 use std::cmp::Ordering;
-use std::process::Command;
 
 use rayon::prelude::*;
-use rustfft::{FftPlanner, num_complex::Complex};
 
-use crate::{Action, Policy, Ruleset, Solver, State};
-
-/// Optimized lookup table for dice roll probability mass functions.
-///
-/// Precomputes and stores PMFs for all dice counts up to a maximum, enabling
-/// O(1) lookup of P(sum = k | n dice). This is the performance-critical
-/// component of the solver, as PMF lookups occur millions of times during
-/// policy computation.
-#[derive(Debug, Clone)]
-struct PMFLookup {
-    /// Flat array containing all PMF data.
-    data: Box<[f64]>,
-    /// Starting offsets for each n-dice PMF.
-    offsets: Box<[usize]>,
-    /// Maximum number of dice.
-    max_n: u32,
-}
-
-impl Default for PMFLookup {
-    fn default() -> Self {
-        Self {
-            data: Box::new([]),
-            offsets: Box::new([]),
-            max_n: 0,
-        }
-    }
-}
-
-impl PMFLookup {
-    /// Precompute all required PMFs for the given game parameters.
-    ///
-    /// Generates PMFs for 0 to `max_n` dice, where `max_n` is determined by the
-    /// largest number of dice that could be strategically relevant. Uses FFT
-    /// convolution for efficient computation and creates optimized lookup
-    /// tables.
-    #[must_use]
-    pub fn precompute(max: u32, sides: u32) -> Self {
-        let max_n = (2 * (max + sides) / (sides + 1)).max(max + 1);
-        let dice_pmf = vec![1.0 / f64::from(sides); sides as usize];
-
-        // First pass: compute individual PMFs to determine total size
-        let mut temp_pmfs: Vec<Vec<f64>> = Vec::with_capacity((max_n + 1) as usize);
-        temp_pmfs.push(vec![1.0]); // n=0 case
-
-        for n in 1..=max_n {
-            temp_pmfs.push(Self::fft_convolve(&temp_pmfs[(n - 1) as usize], &dice_pmf));
-        }
-
-        // Validate PMFs sum to 1.0
-        for (n, pmf) in temp_pmfs.iter().enumerate() {
-            if n > 0 {
-                let sum: f64 = pmf.iter().sum();
-                debug_assert!(
-                    (sum - 1.0).abs() < 1e-10,
-                    "PMF for {n} dice doesn't sum to 1.0: {sum}",
-                );
-            }
-        }
-
-        // Second pass: flatten into single array with offset table
-        let total_size: usize = temp_pmfs.iter().map(Vec::len).sum();
-        let mut data = Vec::with_capacity(total_size);
-        let mut offsets = Vec::with_capacity((max_n + 1) as usize);
-
-        for pmf in &temp_pmfs {
-            offsets.push(data.len());
-            data.extend_from_slice(pmf);
-        }
-
-        Self {
-            data: data.into_boxed_slice(),
-            offsets: offsets.into_boxed_slice(),
-            max_n,
-        }
-    }
-    /// Convolve two real-valued PMFs using FFT.
-    #[must_use]
-    pub fn fft_convolve(a: &[f64], b: &[f64]) -> Vec<f64> {
-        let size = (a.len() + b.len()).next_power_of_two();
-        let mut planner = FftPlanner::new();
-        let fft = planner.plan_fft_forward(size);
-        let ifft = planner.plan_fft_inverse(size);
-
-        let mut fa: Vec<Complex<f64>> = a.iter().map(|&x| Complex::new(x, 0.0)).collect();
-        fa.resize(size, Complex::new(0.0, 0.0));
-        let mut fb: Vec<Complex<f64>> = b.iter().map(|&x| Complex::new(x, 0.0)).collect();
-        fb.resize(size, Complex::new(0.0, 0.0));
-
-        fft.process(&mut fa);
-        fft.process(&mut fb);
-
-        for (x, y) in fa.iter_mut().zip(fb.iter()) {
-            *x *= *y;
-        }
-
-        ifft.process(&mut fa);
-        fa.truncate(a.len() + b.len() - 1);
-        fa.iter().map(|x| (x.re / size as f64).max(0.0)).collect()
-    }
-    /// Fast lookup of PMF value P(sum = total | n dice).
-    ///
-    /// Optimized for hot path usage with caching for small n values and unsafe
-    /// memory access. Use this in performance-critical code where bounds are
-    /// guaranteed.
-    ///
-    /// # Safety
-    ///
-    /// Caller must ensure `n` ≤ `max_n` and `total` ≥ `n`.
-    #[must_use]
-    #[inline]
-    pub fn lookup(&self, n: u32, total: u32) -> f64 {
-        debug_assert!(n <= self.max_n, "n={} exceeds max_n={}", n, self.max_n);
-        debug_assert!(total >= n, "total={total} less than n={n}");
-
-        unsafe {
-            let offset = *self.offsets.get_unchecked(n as usize);
-            let index = offset + (total - n) as usize;
-            *self.data.get_unchecked(index)
-        }
-    }
-}
+use crate::greed::{Action, Policy, Ruleset, State};
+use crate::pmf::PMFLookup;
+use crate::solver::Solver;
 
 /// Computes optimal strategies for Greed using dynamic programming.
 ///
@@ -176,7 +56,7 @@ pub struct DpSolver {
 impl DpSolver {
     /// Create a new solver for the specified game parameters.
     #[must_use]
-    pub fn new(max: u32, sides: u32) -> Self {
+    pub fn new(max: u16, sides: u16) -> Self {
         Self {
             ruleset: Ruleset::new(max, sides),
             policy: Policy::new(max),
@@ -212,12 +92,12 @@ impl DpSolver {
     }
     /// Returns the maximum score for this game configuration.
     #[must_use]
-    pub const fn max(&self) -> u32 {
+    pub const fn max(&self) -> u16 {
         self.ruleset.max()
     }
     /// Returns the number of sides on each die for this game configuration.
     #[must_use]
-    pub const fn sides(&self) -> u32 {
+    pub const fn sides(&self) -> u16 {
         self.ruleset.sides()
     }
 }
@@ -239,7 +119,7 @@ impl DpSolver {
             .collect();
 
         for (state, action) in actions {
-            self.policy.set(&state, action);
+            self.policy[state] = action;
         }
     }
     /// Find the optimal number of dice to roll in a terminal state.
@@ -257,7 +137,7 @@ impl DpSolver {
     pub fn find_optimal_terminal_action(&self, state: State) -> Action {
         if state.active() > state.queued() {
             // If already ahead, doing nothing wins 100% of the time.
-            return Action { n: 0, payoff: 1.0 };
+            return Action::new(0, 1.0);
         }
         if self.sides() * (state.queued() - state.active() + 1) <= self.max() - state.active() {
             // If there is some action A where the minimum sum > queued - active AND the
@@ -270,12 +150,12 @@ impl DpSolver {
 
         loop {
             let current_payoff = self.calc_terminal_payoff(state, dice_rolled);
-            if optimal_action.payoff - current_payoff >= 10e-2
+            if optimal_action.payoff() - current_payoff >= 10e-2
                 || dice_rolled >= (2 * self.max() / (self.sides() + 1) + 1).max(self.max() + 1)
             {
                 break;
             }
-            if current_payoff > optimal_action.payoff {
+            if current_payoff > optimal_action.payoff() {
                 optimal_action = Action::new(dice_rolled, current_payoff);
             }
             dice_rolled += 1;
@@ -292,7 +172,7 @@ impl DpSolver {
     /// - Lose: final score < opponent's score or > max (bust)
     /// - Tie: final score = opponent's score
     #[must_use]
-    pub fn calc_terminal_payoff(&self, state: State, dice_rolled: u32) -> f64 {
+    pub fn calc_terminal_payoff(&self, state: State, dice_rolled: u16) -> f64 {
         if dice_rolled == 0 {
             return match state.active().cmp(&state.queued()) {
                 Ordering::Less => -1.0,
@@ -303,11 +183,12 @@ impl DpSolver {
 
         (dice_rolled..=self.sides() * dice_rolled).fold(0.0, |acc, dice_total| {
             let probability = self.pmfs.lookup(dice_rolled, dice_total);
-            match (state.active() + dice_total).cmp(&state.queued()) {
-                Ordering::Greater if state.active() + dice_total <= self.max() => acc + probability, // higher valid score
-                Ordering::Less | Ordering::Greater => acc - probability, // lower score or bust
-                Ordering::Equal => acc,                                  // tie
-            }
+            let outcome = match (state.active() + dice_total).cmp(&state.queued()) {
+                Ordering::Greater if state.active() + dice_total <= self.max() => 1.0,
+                Ordering::Equal => 0.0,
+                Ordering::Less | Ordering::Greater => -1.0,
+            };
+            acc + outcome * probability
         })
     }
 }
@@ -336,12 +217,8 @@ impl DpSolver {
             let states_actions: Vec<(State, Action)> = (0..=order.min(2 * self.max() - order))
                 .into_par_iter() // Parallelize only within each order.
                 .map(|place| {
-                    // Calculate the player and opponent score for this order and place.
-                    let (turn, next) = if order < self.max() {
-                        (order - place, place)
-                    } else {
-                        (self.max() - place, (order - self.max()) + place)
-                    };
+                    let turn = order.min(self.max()) - place;
+                    let next = order.max(self.max()) - self.max() + place;
                     let state = State::new(turn, next, false);
                     let action = self.find_optimal_normal_action(state);
                     (state, action)
@@ -350,7 +227,7 @@ impl DpSolver {
 
             // Insert the results for this order into the policy.
             for (state, action) in states_actions {
-                self.policy.set(&state, action);
+                self.policy[state] = action;
             }
         }
     }
@@ -392,128 +269,21 @@ impl DpSolver {
     /// All reachable future states must already be solved for correct payoff
     /// lookup.
     #[must_use]
-    pub fn calc_normal_payoff(&self, state: State, dice_rolled: u32) -> f64 {
+    pub fn calc_normal_payoff(&self, state: State, dice_rolled: u16) -> f64 {
         if dice_rolled == 0 {
             let terminal_state = State::new(state.queued(), state.active(), true);
-            return -self.policy.get(&terminal_state).payoff;
+            return -self.policy[terminal_state].payoff();
         }
         (dice_rolled..=self.sides() * dice_rolled).fold(0.0, |acc, dice_total| {
             let probability: f64 = self.pmfs.lookup(dice_rolled, dice_total);
             let payoff = if state.active() + dice_total <= self.max() {
                 let state = State::new(state.queued(), state.active() + dice_total, false);
-                -self.policy.get(&state).payoff
+                -self.policy[state].payoff()
             } else {
                 -1.0
             };
             probability.mul_add(payoff, acc)
         })
-    }
-}
-
-impl DpSolver {
-    /// Output the complete policy in human-readable format to stdout.
-    pub fn stdout(&self) {
-        let mut state_action_pairs: Vec<_> = self.policy.clone().iter().collect();
-        state_action_pairs.sort_by_key(|(state, _)| (state.last(), state.active(), state.queued()));
-
-        let (terminal_states, normal_states): (Vec<_>, Vec<_>) = state_action_pairs
-            .into_iter()
-            .partition(|(state, _)| state.last());
-
-        // terminal states
-        for (state, action) in terminal_states {
-            println!(
-                "({}, {}, terminal) => (dice: #{}, payoff: {})",
-                state.active(),
-                state.queued(),
-                action.n,
-                action.payoff
-            );
-        }
-        println!();
-        // normal states
-        for (state, action) in normal_states {
-            println!(
-                "({}, {}, normal) => (dice: #{}, payoff: {})",
-                state.active(),
-                state.queued(),
-                action.n,
-                action.payoff
-            );
-        }
-    }
-    /// Export the policy to a CSV file for external analysis or visualization.
-    ///
-    /// Creates a CSV with columns: active, queued, last, n, payoff
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the file cannot be created or written to.
-    pub fn csv(&self, path: &str) -> Result<(), csv::Error> {
-        let mut writer = csv::Writer::from_path(path)?;
-
-        // Write headers
-        writer.serialize(("active", "queued", "last", "n", "payoff"))?;
-        for (state, action) in self.policy.iter() {
-            writer.serialize((
-                state.active(),
-                state.queued(),
-                state.last(),
-                action.n,
-                action.payoff,
-            ))?;
-        }
-        writer.flush()?;
-        Ok(())
-    }
-    /// Generate SVG visualizations of the optimal policy using R scripts.
-    ///
-    /// Creates temporary CSV data and executes the R visualization script to
-    /// produce policy heatmaps and strategy visualizations. Requires R and
-    /// necessary packages.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if R is not available, the script fails, or file I/O
-    /// fails.
-    pub fn svg(&self) -> Result<(), Box<dyn std::error::Error>> {
-        // Create temporary CSV file
-        let temp_file = tempfile::NamedTempFile::new()?;
-        let temp_path = temp_file.path();
-
-        // Write CSV data to temporary file
-        let mut writer = csv::Writer::from_path(temp_path)?;
-        writer.serialize(("active", "queued", "last", "n", "payoff"))?;
-        for (state, action) in self.policy.iter() {
-            writer.serialize((
-                state.active(),
-                state.queued(),
-                state.last(),
-                action.n,
-                action.payoff,
-            ))?;
-        }
-        writer.flush()?;
-
-        let output = Command::new("Rscript")
-            .arg("optimal_policies.R")
-            .arg(temp_path)
-            .current_dir("visualize")
-            .output()?;
-
-        if output.status.success() {
-            if !output.stdout.is_empty() {
-                println!("R output: {}", String::from_utf8_lossy(&output.stdout));
-            }
-        } else {
-            eprintln!("R script failed with exit code: {:?}", output.status.code());
-            if !output.stderr.is_empty() {
-                eprintln!("R error: {}", String::from_utf8_lossy(&output.stderr));
-            }
-            return Err("R script execution failed".into());
-        }
-
-        Ok(())
     }
 }
 
@@ -540,13 +310,13 @@ mod tests {
 
         // At max score, should never roll
         let max_state = State::new(10, 5, false);
-        let action = solver.policy.get(&max_state);
-        assert_eq!(action.n, 0, "At max score, should never roll");
+        let action = solver.policy[max_state];
+        assert_eq!(action.n(), 0, "At max score, should never roll");
 
         // When opponent is at max and we're behind in terminal state, must roll
         let must_roll_state = State::new(8, 10, true);
-        let action = solver.policy.get(&must_roll_state);
-        assert!(action.n > 0, "Must roll when behind in terminal state");
+        let action = solver.policy[must_roll_state];
+        assert!(action.n() > 0, "Must roll when behind in terminal state");
     }
 
     #[test]
@@ -559,13 +329,13 @@ mod tests {
         let state1 = State::new(8, 6, false);
         let state2 = State::new(6, 8, false);
 
-        let action1 = solver.policy.get(&state1);
-        let action2 = solver.policy.get(&state2);
+        let action1 = solver.policy[state1];
+        let action2 = solver.policy[state2];
 
         // While not perfectly symmetric due to turn order, payoffs should be roughly
         // opposite
         assert!(
-            (action1.payoff + action2.payoff).abs() < 0.5,
+            (action1.payoff() + action2.payoff()).abs() < 0.5,
             "Symmetric states should have roughly opposite payoffs"
         );
     }
@@ -584,16 +354,16 @@ mod tests {
         ];
 
         for state in close_states {
-            let action = solver.policy.get(&state);
+            let action = solver.policy[state];
 
             // All actions should be valid
-            assert!(action.n <= 20, "End game actions should be reasonable");
-            assert!(action.payoff >= -1.0 - 1e-10, "Payoffs should be valid");
-            assert!(action.payoff <= 1.0 + 1e-10, "Payoffs should be valid");
+            assert!(action.n() <= 20, "End game actions should be reasonable");
+            assert!(action.payoff() >= -1.0 - 1e-10, "Payoffs should be valid");
+            assert!(action.payoff() <= 1.0 + 1e-10, "Payoffs should be valid");
 
             // At max score, should never roll
             if state.active() == 30 {
-                assert_eq!(action.n, 0, "At max score, should never roll");
+                assert_eq!(action.n(), 0, "At max score, should never roll");
             }
         }
     }

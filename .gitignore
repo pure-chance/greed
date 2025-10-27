@@ -1,4 +1,2 @@
-**/*/target
-**/visualize/*.csv
-**/visualize/*.png
-**/visualize/*.svg
+target/
+results/

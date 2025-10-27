@@ -1,6 +1,6 @@
 [package]
-name = "greed"
-description = "An optimizer / interface for the game of Greed"
+name = "greed-solve"
+description = "An optimizer for the game of Greed"
 version = "0.1.0"
 edition = "2024"
 readme = "README.md"
@@ -12,11 +12,8 @@ categories = ["mathematics", "algorithms", "simulation" ]
 [dependencies]
 csv = "1.3.0"
 clap = "4.5.36"
-colored = "3.0.0"
 rayon = "1.10.0"
 rustfft = "6.3.0"
-rand = "0.9.1"
-tempfile = "3.8.0"
 
 [dev-dependencies]
 criterion = "0.5"
