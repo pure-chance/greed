@@ -12,7 +12,8 @@
   set columns(gutter: 1.5em)
 
   // Configure text properties --
-  set text(font: "Linux Libertine", size: 11pt, weight: "regular")
+  set text(font: "Libertinus Serif", size: 11pt, weight: "regular")
+  show raw: set text(font: "Maple Mono NF")
 
   // Configure paragraph properties --
   set par(
@@ -21,15 +22,25 @@
 
   // Configure heading properties --
   set heading(numbering: "1.1.")
-  show heading: set block(above: 1.25em)
-  show heading.where(level: 1): set text(size: 13pt)
+  show heading: set text(size: 11pt)
   show heading: it => {
-    if it.level >= 2 {
-      set text(size: 11pt, style: "normal", weight: "bold")
-      let heading = counter(heading).display(it.numbering) + h(0.6em) + it.body
-      block(below: 0pt) + heading + [.]
-    } else {
+    if it.level <= 1 {
       it
+    } else {
+      // inline heading
+      let heading = counter(heading).display(it.numbering) + h(0.2em) + it.body
+      block(below: 0pt) + heading + [.]
+    }
+  }
+
+  show heading.where(level: 1): set text(size: 13pt, style: "normal", weight: "bold")
+  show heading.where(level: 2): set text(size: 11pt, style: "normal", weight: "bold")
+  show heading: it => {
+    if it.level >= 3 {
+      set text(size: 11pt, style: "italic", weight: "regular")
+      it
+    } else {
+      it // passthrough
     }
   }
 

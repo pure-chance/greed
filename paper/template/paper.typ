@@ -23,7 +23,7 @@
     #let authors = authors.join(", ")
     #set par(first-line-indent: 0pt)
     #text(size: 2em, weight: "bold")[#title] #v(0.5em)
-    #text(size: 1.25em)[#authors] #v(1em)
+    #text(size: 1.2em)[#authors] #v(1em)
   ]
 
   // abstract --
