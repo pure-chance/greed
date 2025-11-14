@@ -128,44 +128,43 @@ impl DpSolver {
 
     /// Find the optimal number of dice to roll in a terminal state.
     ///
-    /// Uses the mathematical property that terminal payoff functions are
-    /// unimodal (single peak) to enable early termination when payoffs start
-    /// decreasing.
-    ///
     /// # Algorithm
     ///
-    /// + Handle obvious cases (already winning, guaranteed win scenarios)
-    /// + Search from minimum viable dice count upward
-    /// + Stop when payoff decreases consistently or search limit reached
+    /// We can split the possible terminal states into 3 categories:
+    /// 1. If already ahead, doing nothing wins 100% of the time.
+    /// 2. If there is some action A where the minimum sum > queued - active AND
+    ///    the maximum sum is < max score - active, then that action wins 100%
+    ///    of the time.
+    /// 3. Otherwise, we need to calculate the optimal action by finding the max
+    ///    in `range`, with boundaries that guarantee that the optimal action is
+    ///    within the range.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the either (1) one of the `f64` from
+    /// `self.calc_terminal_payoff(state, dice_rolled)` is not comparable (i.e.,
+    /// it's `NaN`), or (2) the `range` is empty. **Both of these conditions are
+    /// impossible.**
     #[must_use]
     pub fn find_optimal_terminal_action(&self, state: State) -> Action {
         if state.active() > state.queued() {
-            // If already ahead, doing nothing wins 100% of the time.
-            return Action::new(0, 1.0);
+            return Action::new(0, 1.0); // Ahead
         }
         if self.sides() * (state.queued() - state.active() + 1) <= self.max() - state.active() {
-            // If there is some action A where the minimum sum > queued - active AND the
-            // maximum sum is < max score - active, then that action wins 100% of the time.
-            return Action::new(state.queued() - state.active() + 1, 1.0);
+            return Action::new(state.queued() - state.active() + 1, 1.0); // Guaranteed win
         }
 
-        let mut optimal_action = Action::new(0, -1.0);
-        let mut dice_rolled = (state.queued() - state.active()) / self.sides(); // Start at min non-zero payoff.
+        // `range` starts at the min non-zero payoff, and ends at the maximum
+        // optimal payoff (the point where the mean of the sum + active exceeds
+        // the max score).
+        let range = (state.queued() - state.active()) / self.sides()
+            ..=2 * (self.max() - state.active() + self.sides()) / (self.sides() + 1).max(1);
 
-        loop {
-            let current_payoff = self.calc_terminal_payoff(state, dice_rolled);
-            if optimal_action.payoff() - current_payoff >= 10e-2
-                || dice_rolled >= (2 * self.max() / (self.sides() + 1) + 1).max(self.max() + 1)
-            {
-                break;
-            }
-            if current_payoff > optimal_action.payoff() {
-                optimal_action = Action::new(dice_rolled, current_payoff);
-            }
-            dice_rolled += 1;
-        }
-
-        optimal_action
+        range
+            .map(|dice_rolled| (dice_rolled, self.calc_terminal_payoff(state, dice_rolled)))
+            .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+            .map(|(dice_rolled, payoff)| Action::new(dice_rolled, payoff))
+            .unwrap() // Possible win
     }
 
     /// Calculate expected payoff for rolling a specific number of dice in a
@@ -252,10 +251,9 @@ impl DpSolver {
     pub fn find_optimal_normal_action(&self, state: State) -> Action {
         // The mean is $(n)(s + 1) / 2$, thus the $n$ for which the mean next score is
         // greater than the max score is $ceil(2 * (MAX - a) / (s + 1))$. This is the
-        // same as $2 * (MAX - a + s) / (s + 1)$. This is how `max_optimal_n` is
-        // calculated.
-        let max_optimal_n = 2 * (self.max() - state.active() + self.sides()) / (self.sides() + 1);
-        let (optimal_roll, optimal_payoff) = (0..=max_optimal_n)
+        // same as $2 * (MAX - a + s) / (s + 1)$. This is how `limit` is calculated.
+        let limit = 2 * (self.max() - state.active() + self.sides()) / (self.sides() + 1).max(1);
+        let (optimal_roll, optimal_payoff) = (0..=limit)
             .rev() // If equal, the less aggressive move is taken.
             .map(|dice_rolled| (dice_rolled, self.calc_normal_payoff(state, dice_rolled)))
             .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
