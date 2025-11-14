@@ -216,6 +216,7 @@ impl Policy {
     ///
     /// Panics if file path does not have a parent directory.
     pub fn csv(&self, path: &str) -> Result<(), csv::Error> {
+        std::fs::create_dir_all(std::path::Path::new(path).parent().unwrap())?;
         let mut writer = csv::Writer::from_path(path)?;
         writer.serialize(("active", "queued", "last", "n", "payoff"))?; // serialize headers
         for (state, action) in self.iter() {
