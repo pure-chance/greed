@@ -1,6 +1,6 @@
-use rustfft::{FftPlanner, num_complex::Complex};
+use std::ops::{Index, IndexMut};
 
-/// Optimized lookup table for dice roll probability mass functions.
+/// Lookup table for dice roll probability mass functions.
 ///
 /// Precomputes and stores PMFs for all dice counts up to a maximum, enabling
 /// O(1) lookup of P(sum = k | n dice). This is the performance-critical
@@ -36,86 +36,95 @@ impl PMFLookup {
     #[must_use]
     pub fn precompute(max: u16, sides: u16) -> Self {
         let max_n = (2 * (max + sides) / (sides + 1)).max(max + 1);
-        let dice_pmf = vec![1.0 / f64::from(sides); sides as usize];
 
-        // First pass: compute individual PMFs to determine total size
-        let mut temp_pmfs: Vec<Vec<f64>> = Vec::with_capacity((max_n + 1) as usize);
-        temp_pmfs.push(vec![1.0]); // n=0 case
+        let mut pmf_table: Vec<Vec<f64>> = Vec::with_capacity(max_n as usize + 1);
+        pmf_table.push(vec![1.0]);
+        pmf_table.push(vec![1.0 / f64::from(sides); sides as usize]);
 
-        for n in 1..=max_n {
-            temp_pmfs.push(Self::fft_convolve(&temp_pmfs[(n - 1) as usize], &dice_pmf));
+        for n in 2..=max_n as usize {
+            let pmf = &pmf_table[n - 1];
+            let convolution = Self::sliding_window_convolution(pmf, sides as usize);
+            pmf_table.push(convolution);
         }
 
-        // Validate PMFs sum to 1.0
-        for (n, pmf) in temp_pmfs.iter().enumerate() {
-            if n > 0 {
-                let sum: f64 = pmf.iter().sum();
-                debug_assert!(
-                    (sum - 1.0).abs() < 1e-10,
-                    "PMF for {n} dice doesn't sum to 1.0: {sum}",
-                );
-            }
-        }
-
-        // Second pass: flatten into single array with offset table
-        let total_size: usize = temp_pmfs.iter().map(Vec::len).sum();
-        let mut data = Vec::with_capacity(total_size);
-        let mut offsets = Vec::with_capacity((max_n + 1) as usize);
-
-        for pmf in &temp_pmfs {
-            offsets.push(data.len());
-            data.extend_from_slice(pmf);
-        }
+        let data: Box<[f64]> = pmf_table.into_iter().flat_map(Vec::into_iter).collect();
+        let offsets: Box<[usize]> = (0..=max_n)
+            .map(|n| ((sides - 1) * (n * (n - 1) / 2) + n) as usize)
+            .collect();
 
         Self {
-            data: data.into_boxed_slice(),
-            offsets: offsets.into_boxed_slice(),
+            data,
+            offsets,
             max_n,
         }
     }
-    /// Convolve two real-valued PMFs using FFT.
-    #[must_use]
-    pub fn fft_convolve(a: &[f64], b: &[f64]) -> Vec<f64> {
-        let size = (a.len() + b.len()).next_power_of_two();
-        let mut planner = FftPlanner::new();
-        let fft = planner.plan_fft_forward(size);
-        let ifft = planner.plan_fft_inverse(size);
-
-        let mut fa: Vec<Complex<f64>> = a.iter().map(|&x| Complex::new(x, 0.0)).collect();
-        fa.resize(size, Complex::new(0.0, 0.0));
-        let mut fb: Vec<Complex<f64>> = b.iter().map(|&x| Complex::new(x, 0.0)).collect();
-        fb.resize(size, Complex::new(0.0, 0.0));
-
-        fft.process(&mut fa);
-        fft.process(&mut fb);
-
-        for (x, y) in fa.iter_mut().zip(fb.iter()) {
-            *x *= *y;
-        }
-
-        ifft.process(&mut fa);
-        fa.truncate(a.len() + b.len() - 1);
-        fa.iter().map(|x| (x.re / size as f64).max(0.0)).collect()
-    }
-    /// Fast lookup of PMF value P(sum = total | n dice).
+    /// Returns the convolution of a given PMF with the uniform PMF of a single
+    /// die with given number of `sides`.
     ///
-    /// Optimized for hot path usage with caching for small n values and unsafe
-    /// memory access. Use this in performance-critical code where bounds are
-    /// guaranteed.
+    /// This is implemented using a sliding window approach for performance.
+    #[must_use]
+    pub fn sliding_window_convolution(pmf: &[f64], sides: usize) -> Vec<f64> {
+        let mut convolution = Vec::with_capacity(pmf.len() + sides - 1);
+        let mut running_sum = 0.0;
+        for i in 0..(pmf.len() + sides - 1) {
+            if i < pmf.len() {
+                running_sum += pmf[i];
+            }
+            if i >= sides {
+                running_sum -= pmf[i - sides];
+            }
+            #[allow(clippy::cast_precision_loss)]
+            convolution.push(running_sum / sides as f64);
+        }
+        convolution
+    }
+}
+
+impl Index<(u16, u16)> for PMFLookup {
+    type Output = f64;
+
+    /// Returns a reference to the PMF value P(sum = total | n dice).
     ///
     /// # Safety
     ///
     /// Caller must ensure `n` ≤ `max_n` and `total` ≥ `n`.
-    #[must_use]
     #[inline]
-    pub fn lookup(&self, n: u16, total: u16) -> f64 {
+    fn index(&self, (n, total): (u16, u16)) -> &Self::Output {
         debug_assert!(n <= self.max_n, "n={} exceeds max_n={}", n, self.max_n);
         debug_assert!(total >= n, "total={total} less than n={n}");
-
         unsafe {
             let offset = *self.offsets.get_unchecked(n as usize);
             let index = offset + (total - n) as usize;
-            *self.data.get_unchecked(index)
+            &self.data[index]
         }
+    }
+}
+
+impl IndexMut<(u16, u16)> for PMFLookup {
+    /// Returns a mutable reference to the PMF value P(sum = total | n dice).
+    ///
+    /// # Safety
+    ///
+    /// Caller must ensure `n` ≤ `max_n` and `total` ≥ `n`.
+    fn index_mut(&mut self, (n, total): (u16, u16)) -> &mut Self::Output {
+        debug_assert!(n <= self.max_n, "n={} exceeds max_n={}", n, self.max_n);
+        debug_assert!(total >= n, "total={total} less than n={n}");
+        unsafe {
+            let offset = *self.offsets.get_unchecked(n as usize);
+            let index = offset + (total - n) as usize;
+            &mut self.data[index]
+        }
+    }
+}
+
+mod tests {
+    use super::*;
+
+    #[test]
+    fn correct_pmfs() {
+        let pmf = PMFLookup::precompute(10, 6);
+        assert_eq!(pmf[(0, 0)], 1.0);
+        assert_eq!(pmf[(1, 1)], 1.0 / 6.0);
+        assert_eq!(pmf[(2, 1)], 1.0 / 36.0);
     }
 }
