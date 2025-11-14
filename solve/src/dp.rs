@@ -70,16 +70,11 @@ impl DpSolver {
     /// Calculates an upper bound on the maximum dice needed and generates PMFs
     /// up to that limit. This is done once per solver and enables O(1)
     /// probability lookups during policy computation.
-    ///
-    /// # Performance Impact
-    ///
-    /// This is a one-time cost that dramatically speeds up the subsequent solve
-    /// operations.
     pub fn precompute_pmfs(&mut self) {
         self.pmfs = PMFLookup::precompute(self.max(), self.sides());
     }
 
-    /// Compute the complete optimal policy for this game configuration.
+    /// Compute the complete optimal policy for the given ruleset.
     ///
     /// Performs the full two-stage solve: terminal states first, then normal
     /// states. After completion, the policy can be queried for any valid game
@@ -93,12 +88,13 @@ impl DpSolver {
         self.solve_normal_states();
     }
 
-    /// Returns the maximum score for this game configuration.
+    /// Returns the maximum score for this ruleset.
     #[must_use]
     pub const fn max(&self) -> u32 {
         self.ruleset.max()
     }
-    /// Returns the number of sides on each die for this game configuration.
+
+    /// Returns the number of sides on each die for this ruleset.
     #[must_use]
     pub const fn sides(&self) -> u32 {
         self.ruleset.sides()
@@ -106,7 +102,7 @@ impl DpSolver {
 }
 
 impl DpSolver {
-    /// Compute optimal actions for all terminal (final round) states.
+    /// Compute optimal actions for all terminal (last round) states.
     ///
     /// Terminal states occur when one player has stood, triggering the final
     /// round. These states can be solved independently since there are no
@@ -320,7 +316,7 @@ mod tests {
         let action = solver.policy[max_state];
         assert_eq!(action.n(), 0, "At max score, should never roll");
 
-        // When opponent is at max and we're behind in terminal state, must roll
+        // When opponent is at max and we're behind, must roll
         let must_roll_state = State::new(8, 10, true);
         let action = solver.policy[must_roll_state];
         assert!(action.n() > 0, "Must roll when behind in terminal state");
@@ -365,8 +361,8 @@ mod tests {
 
             // All actions should be valid
             assert!(action.n() <= 20, "End game actions should be reasonable");
-            assert!(action.payoff() >= -1.0 - 1e-10, "Payoffs should be valid");
-            assert!(action.payoff() <= 1.0 + 1e-10, "Payoffs should be valid");
+            assert!(action.payoff() >= -1.0 - 1e-10, "payoffs should be valid");
+            assert!(action.payoff() <= 1.0 + 1e-10, "payoffs should be valid");
 
             // At max score, should never roll
             if state.active() == 30 {

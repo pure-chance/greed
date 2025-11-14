@@ -211,11 +211,13 @@ impl Policy {
     /// # Errors
     ///
     /// Returns an error if the file cannot be created or written to.
+    ///
+    /// # Panics
+    ///
+    /// Panics if file path does not have a parent directory.
     pub fn csv(&self, path: &str) -> Result<(), csv::Error> {
         let mut writer = csv::Writer::from_path(path)?;
-
-        // Write headers
-        writer.serialize(("active", "queued", "last", "n", "payoff"))?;
+        writer.serialize(("active", "queued", "last", "n", "payoff"))?; // serialize headers
         for (state, action) in self.iter() {
             writer.serialize((
                 state.active(),

@@ -11,6 +11,9 @@ use crate::greed::{Policy, Ruleset};
 /// The solver will find some "optimal" policy for greed with the given ruleset.
 /// The term "optimal" is defined in context of the solver's design.
 pub trait Solver {
+    /// Returns the ruleset used by the solver.
     fn ruleset(&self) -> Ruleset;
+
+    /// Returns the policy computed by the solver.
     fn policy(&mut self) -> Policy;
 }
