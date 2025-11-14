@@ -22,6 +22,10 @@ inherits = "release"
 debug = true
 
 [[bench]]
+name = "pmf"
+harness = false
+
+[[bench]]
 name = "terminal"
 harness = false
 
@@ -31,8 +35,4 @@ harness = false
 
 [[bench]]
 name = "solve"
-harness = false
-
-[[bench]]
-name = "pmf"
 harness = false

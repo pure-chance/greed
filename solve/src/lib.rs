@@ -28,4 +28,5 @@ mod solver;
 
 pub use dp::DpSolver;
 pub use greed::{Action, Policy, Ruleset, State};
+pub use pmf::PMFLookup;
 pub use solver::Solver;
