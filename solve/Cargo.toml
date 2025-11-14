@@ -21,6 +21,13 @@ criterion = "0.5"
 inherits = "release"
 debug = true
 
+[lints.clippy]
+all = "warn"
+pedantic = "warn"
+nursery = "warn"
+cargo = "warn"
+missing_docs = "warn"
+
 [[bench]]
 name = "pmf"
 harness = false
