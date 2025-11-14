@@ -69,17 +69,14 @@ cargo run --release -- --max=100 --sides=6 --format=stdout
 ```sh
 cd visualize
 # generates svg files from the csv file:
-# - `terminal_n.svg`
-# - `terminal_payoffs.svg`
-# - `normal_n.svg`
-# - `normal_payoffs.svg`
+# - `payoffs.svg`
+# - `rolls.svg`
 julia visualize.jl ../results/greed_100_6.csv
 ```
 
-| | **Terminal** | **Normal** |
-|-|--------------|------------|
-| **Payoff** | ![Terminal Payoffs](paper/assets/terminal_payoffs.svg) | ![Normal Payoffs](paper/assets/normal_payoffs.svg) |
-| **n** | ![Terminal Rolls](paper/assets/terminal_n.svg) | ![Normal Rolls](paper/assets/normal_n.svg) |
+
+![Payoffs](paper/assets/payoffs.svg)
+![Rolls](paper/assets/rolls.svg)
 
 
 ## Key Findings

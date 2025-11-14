@@ -212,36 +212,30 @@ With the theoretical framework established, we implemented the dynamic programmi
 
 The following visualizations present the computed optimal policies and their associated payoffs for both terminal and normal game states. These visualizations provide many insights into the strategic principles of Greed and what those principles say about the game itself.
 
-#let terminal-payoffs = figure(
-  image("assets/terminal_payoffs.svg", width: 100%),
-  caption: [*Optimal payoffs for terminal states given the standard ruleset of $M = 100, s = 6$.* The optimal policy for terminal states gives payoffs that benefit the active player unless the queued player has built a sufficient lead, or the score is very close to $M$.]
+#let payoffs = figure(
+  image("assets/optimal_values.svg", width: 100%),
+  alt: "Plot of the optimal values (payoffs) for Greed.",
+  caption: [*Optimal payoffs for each state given the standard ruleset of $M = 100, s = 6$.* In terminal states, there is a logarithmic curve which marks where the odds are equal. For normal states, there are distinct bands spaced $s$ apart in which the payoffs are more in favor of the player who is ahead. There is also the _inverse icicles_, which are the little bands near $(M, M)$ where the advantage switches to the player who is behind.],
 )
-#let normal-payoffs = figure(
-  image("assets/normal_payoffs.svg", width: 100%),
-  caption: [*Optimal payoffs for normal states given the standard ruleset of $M = 100, s = 6$.* The optimal policy for normal states gives payoffs slightly benefit the active player in the opening, and strongly benefit players who have a massive lead nearing $M$. There are also bands spaced $s$ apart of better payoffs.]
-)
-#let terminal-n = figure(
-  image("assets/terminal_n.svg", width: 100%),
-  caption: [*Optimal policy for terminal states given the standard ruleset of $M = 100, s = 6$.* As expected, the optimal policy for terminal states where the active player is ahead is to roll $0$ and claim the guaranteed win. This also holds true for states where the active player can force a win by rolling some $n$ number of dice. For cases where there is no guaranteed win, the optimal $n$ dice to roll increases as the gap between the active player's score and the queued player's score increases, bounded by $M$.]
-)
-#let normal-n = figure(
-  image("assets/normal_n.svg", width: 100%),
-  caption: [*Optimal policy for normal states given the standard ruleset of $M = 100, s = 6$.* It's only advantageous to _stand_ when very close to $M$ (though a little less when significantly ahead). Otherwise, it's optimal to _roll_ with almost no regard to the other player's score (outside of being within $approx 5\%$ of $M$).]
+
+#let rolls = figure(
+  image("assets/optimal_policy.svg", width: 100%),
+  alt: "Plot of the optimal policy (dice counts) for Greed.",
+  caption: [*Optimal rolls for each state given the standard ruleset of $M = 100, s = 6$.* For normal states, there is a weak correlation between the opponents score and the optimal number of dice to throw. For terminal states, the optimal policy while ahead is to _stand_. For terminal states where victory is not guaranteed, there is a positive correlation between the difference in the queued score and the active score, and the optimal number of dice to roll. This accounts for the diagonal bands.]
 )
 
 #place(auto, scope: "parent", float: true)[
-  #grid(
-    columns: 2,
-    gutter: 2em,
-    box[#terminal-payoffs <fig:terminal-payoffs>],
-    box[#normal-payoffs <fig:normal-payoffs>],
-    box[#terminal-n <fig:terminal-n>],
-    box[#normal-n <fig:normal-n>],
-  )
+  #block(height: 100%)[
+    #grid(
+      columns: 1, gutter: 2em,
+      box[#payoffs <fig:payoffs>],
+      box[#rolls <fig:rolls>],
+    )
+  ]
 ]
 
 == A Game of Chicken
-Looking at @fig:terminal-payoffs, it's clear that you should absolutely not stop rolling dice if you are not already very close to the max score, because otherwise the opponent can easily catch up and win. The most notable feature is the band of balanced endgames (the white band), which follows a square-root function. Relating the terminal payoffs to the normal states, notice that the (bad) red area over the white band is the inverse of the (good) blue area for the normal payoffs. This is expected, since normal states in the positive region will lead the opponent to the corresponding negative region in the terminal states.
+Looking at @fig:payoffs, it's clear that you should absolutely not stop rolling dice if you are not already very close to the max score, because otherwise the opponent can easily catch up and win. The most notable feature is the band of balanced endgames (the white band), which follows a square-root function. Relating the terminal payoffs to the normal states, notice that the (bad) red area over the white band is the inverse of the (good) blue area for the normal payoffs. This is expected, since normal states in the positive region will lead the opponent to the corresponding negative region in the terminal states.
 
 Another detail worth mentioning is the 4 white tiles at $(100, 100, F), (99, 99, F), ..., (96, 96, F)$ These states are ties, because rolling even one die will result in a bust at least half the time.
 
@@ -261,14 +255,6 @@ Of all the visualizations, the normal states are the most wild. They exhibit a c
 First considering the bands, this again demonstrates the behavior between the sides and fixed maximum. If you get lucky and the max sum is only 0, or 1 over the max, then the payoff is better than if the maximum sum is 4 or 5 over the max. This repeats every $s$, since that's when the pattern repeats.
 
 Secondly, the behavior near the max. The most striking patterns are the two "spikes" where despite being ahead, the opposite player has a better chance of winning. It is likely that these spikes exist because in those states, you can't stand, as the opponent could easily win by rolling $1$ die, so you most roll once and then stand on the next turn. But if you roll, the opponent has $2$ chances to roll against your $1$.
-
-Both these behaviors are easier to see in @fig:normal-payoffs-500-20 compared to @fig:normal-payoffs.
-
-#figure(
-  image("assets/normal_payoffs_500_20.svg"),
-  caption: [*Optimal payoffs for normal states given ruleset $(500, 20)$.*],
-  placement: auto,
-) <fig:normal-payoffs-500-20>
 
 = Conclusion <conclusion>
 Our analysis revealed that Greed is fundamentally a game of careful endgame positioning---while mid-game states tend to be balanced, securing even a small advantage can be decisive if leveraged to end the game immediately. The visualizations of optimal policies highlighted interesting strategic patterns, including the critical square-root boundary between winning and losing terminal positions. These insights not only deepen our theoretical understanding of Greed but also provide practical guidance for optimal play.
