@@ -14,7 +14,7 @@ fn main() {
                 .long("max")
                 .value_name("MAX")
                 .help("Maximum score")
-                .value_parser(clap::value_parser!(u16))
+                .value_parser(clap::value_parser!(u32))
                 .default_value("100"),
         )
         .arg(
@@ -23,14 +23,14 @@ fn main() {
                 .long("sides")
                 .value_name("SIDES")
                 .help("Number of sides on each die")
-                .value_parser(clap::value_parser!(u16))
+                .value_parser(clap::value_parser!(u32))
                 .default_value("6"),
         );
 
     let args = cli.get_matches();
 
-    let max = *args.get_one::<u16>("max").unwrap();
-    let sides = *args.get_one::<u16>("sides").unwrap();
+    let max = *args.get_one::<u32>("max").unwrap();
+    let sides = *args.get_one::<u32>("sides").unwrap();
 
     Greed::play(max, sides, ("P1", "P2"));
 }
@@ -50,13 +50,13 @@ pub struct Greed {
     ruleset: Ruleset,
     players: (String, String),
     state: State,
-    turn: u16,
+    turn: u32,
 }
 
 impl Greed {
     /// Create a new `Greed` game.
     #[must_use]
-    pub fn new(max: u16, sides: u16, players: (&str, &str)) -> Self {
+    pub fn new(max: u32, sides: u32, players: (&str, &str)) -> Self {
         Self::banner(max, sides);
 
         Self {
@@ -68,7 +68,7 @@ impl Greed {
         }
     }
     /// Print the game banner.
-    fn banner(max: u16, sides: u16) {
+    fn banner(max: u32, sides: u32) {
         let ruleset = format!("max score: {max}, sides: {sides}");
         let padding = (WIDTH.saturating_sub(ruleset.len())) / 2;
 
@@ -176,7 +176,7 @@ impl Greed {
         }
     }
     /// Get the active player's score.
-    fn player_1(&self) -> u16 {
+    fn player_1(&self) -> u32 {
         if self.turn % 2 == 0 {
             self.state.active()
         } else {
@@ -184,7 +184,7 @@ impl Greed {
         }
     }
     /// Get the queued player's score.
-    fn player_2(&self) -> u16 {
+    fn player_2(&self) -> u32 {
         if self.turn % 2 == 0 {
             self.state.queued()
         } else {
@@ -192,7 +192,7 @@ impl Greed {
         }
     }
     /// Simulate rolling `n` dice.
-    fn roll(&mut self, n: u16) -> bool {
+    fn roll(&mut self, n: u32) -> bool {
         let sum = (0..n).fold(0, |acc, _| {
             acc + self
                 .rng
@@ -220,7 +220,7 @@ impl Greed {
     /// # Panics
     ///
     /// Panics if stdin input cannot be read or parsed as a valid number.
-    pub fn play(max: u16, sides: u16, players: (&str, &str)) {
+    pub fn play(max: u32, sides: u32, players: (&str, &str)) {
         let mut greed = Greed::new(max, sides, players);
 
         loop {
@@ -232,7 +232,7 @@ impl Greed {
             print!("{} rolls: ", greed.active_player().green());
             std::io::stdout().flush().unwrap();
             stdin().read_line(&mut input).unwrap();
-            let n = input.trim().parse::<u16>().unwrap();
+            let n = input.trim().parse::<u32>().unwrap();
 
             // Roll dice
             if greed.roll(n) {
@@ -250,9 +250,9 @@ impl Greed {
 #[derive(Debug, Copy, Clone)]
 pub struct Ruleset {
     /// Maximum score allowed before busting (typically 100).
-    max: u16,
+    max: u32,
     /// The number of sides on each die (typically 6).
-    sides: u16,
+    sides: u32,
 }
 
 impl Default for Ruleset {
@@ -264,17 +264,17 @@ impl Default for Ruleset {
 impl Ruleset {
     /// Create a new ruleset.
     #[must_use]
-    pub const fn new(max: u16, sides: u16) -> Self {
+    pub const fn new(max: u32, sides: u32) -> Self {
         Self { max, sides }
     }
     /// Get the maximum score allowed before busting.
     #[must_use]
-    pub const fn max(&self) -> u16 {
+    pub const fn max(&self) -> u32 {
         self.max
     }
     /// Get the number of sides on each die.
     #[must_use]
-    pub const fn sides(&self) -> u16 {
+    pub const fn sides(&self) -> u32 {
         self.sides
     }
 }
@@ -288,9 +288,9 @@ impl Ruleset {
 #[derive(Debug, Copy, Clone, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct State {
     /// The score of the player whose turn it is.
-    active: u16,
+    active: u32,
     /// The score of the player whose turn is up next.
-    queued: u16,
+    queued: u32,
     /// Whether this is the final round of the game.
     last: bool,
 }
@@ -298,7 +298,7 @@ pub struct State {
 impl State {
     /// Create a new state.
     #[must_use]
-    pub const fn new(active: u16, queued: u16, last: bool) -> Self {
+    pub const fn new(active: u32, queued: u32, last: bool) -> Self {
         Self {
             active,
             queued,
@@ -307,12 +307,12 @@ impl State {
     }
     /// Return the score of actively rolling player.
     #[must_use]
-    pub const fn active(&self) -> u16 {
+    pub const fn active(&self) -> u32 {
         self.active
     }
     /// Return the score queued player.
     #[must_use]
-    pub const fn queued(&self) -> u16 {
+    pub const fn queued(&self) -> u32 {
         self.queued
     }
     /// Return the flag indicating whether this is the final round of the game.

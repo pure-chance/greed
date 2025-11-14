@@ -8,9 +8,9 @@ use std::ops::{Index, IndexMut};
 #[derive(Debug, Copy, Clone)]
 pub struct Ruleset {
     /// Maximum score allowed before busting (typically 100).
-    max: u16,
+    max: u32,
     /// The number of sides on each die (typically 6).
-    sides: u16,
+    sides: u32,
 }
 
 impl Default for Ruleset {
@@ -22,17 +22,17 @@ impl Default for Ruleset {
 impl Ruleset {
     /// Create a new ruleset.
     #[must_use]
-    pub const fn new(max: u16, sides: u16) -> Self {
+    pub const fn new(max: u32, sides: u32) -> Self {
         Self { max, sides }
     }
     /// Get the maximum score allowed before busting.
     #[must_use]
-    pub const fn max(&self) -> u16 {
+    pub const fn max(&self) -> u32 {
         self.max
     }
     /// Get the number of sides on each die.
     #[must_use]
-    pub const fn sides(&self) -> u16 {
+    pub const fn sides(&self) -> u32 {
         self.sides
     }
 }
@@ -46,9 +46,9 @@ impl Ruleset {
 #[derive(Debug, Copy, Clone, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct State {
     /// The score of the player whose turn it is.
-    active: u16,
+    active: u32,
     /// The score of the player whose turn is up next.
-    queued: u16,
+    queued: u32,
     /// Whether this is the final round of the game.
     last: bool,
 }
@@ -56,7 +56,7 @@ pub struct State {
 impl State {
     /// Create a new state.
     #[must_use]
-    pub const fn new(active: u16, queued: u16, last: bool) -> Self {
+    pub const fn new(active: u32, queued: u32, last: bool) -> Self {
         Self {
             active,
             queued,
@@ -65,12 +65,12 @@ impl State {
     }
     /// Return the score of actively rolling player.
     #[must_use]
-    pub const fn active(&self) -> u16 {
+    pub const fn active(&self) -> u32 {
         self.active
     }
     /// Return the score queued player.
     #[must_use]
-    pub const fn queued(&self) -> u16 {
+    pub const fn queued(&self) -> u32 {
         self.queued
     }
     /// Return the flag indicating whether this is the final round of the game.
@@ -90,7 +90,7 @@ impl State {
 #[derive(Debug, Copy, Clone, Default)]
 pub struct Action {
     /// The number of dice to roll (0 means stand/pass).
-    n: u16,
+    n: u32,
     /// The expected payoff when following optimal strategy (-1.0 to 1.0).
     payoff: f64,
 }
@@ -99,12 +99,12 @@ impl Action {
     /// Create a new optimal action with a given number of dice and expected
     /// payoff.
     #[must_use]
-    pub const fn new(n: u16, payoff: f64) -> Self {
+    pub const fn new(n: u32, payoff: f64) -> Self {
         Self { n, payoff }
     }
     /// Get the number of dice to roll.
     #[must_use]
-    pub const fn n(&self) -> u16 {
+    pub const fn n(&self) -> u32 {
         self.n
     }
     /// Get the expected payoff.
@@ -134,7 +134,7 @@ pub struct Policy {
     /// The maximum score.
     ///
     /// This is used for properly indexing the policy table.
-    max: u16,
+    max: u32,
 }
 
 impl Policy {
@@ -143,7 +143,7 @@ impl Policy {
     /// Allocates space for all possible states: (max+1)² normal states +
     /// (max+1)² terminal states.
     #[must_use]
-    pub fn new(max: u16) -> Self {
+    pub fn new(max: u32) -> Self {
         let size = ((max + 1) * (max + 1) * 2) as usize;
         let policy = vec![Action::default(); size].into_boxed_slice();
         Self { policy, max }
@@ -224,7 +224,7 @@ impl Index<State> for Policy {
     type Output = Action;
     fn index(&self, s: State) -> &Self::Output {
         let stride = self.max + 1;
-        let index = s.active() + stride * s.queued() + stride * stride * u16::from(s.last());
+        let index = s.active() + stride * s.queued() + stride * stride * u32::from(s.last());
         &self.policy[index as usize]
     }
 }
@@ -232,7 +232,7 @@ impl Index<State> for Policy {
 impl IndexMut<State> for Policy {
     fn index_mut(&mut self, s: State) -> &mut Self::Output {
         let stride = self.max + 1;
-        let index = s.active() + stride * s.queued() + stride * stride * u16::from(s.last());
+        let index = s.active() + stride * s.queued() + stride * stride * u32::from(s.last());
         &mut self.policy[index as usize]
     }
 }

@@ -1,11 +1,11 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use greed_solve::PMFLookup;
 
 fn pmf_benchmarks(c: &mut Criterion) {
     let mut group = c.benchmark_group("pmf");
 
-    const MAX: u16 = 1000;
-    const SIDES: u16 = 20;
+    const MAX: u32 = 1000;
+    const SIDES: u32 = 20;
     let pmf_lookup = PMFLookup::precompute(MAX, SIDES);
 
     group.bench_function("precompute", |b| {

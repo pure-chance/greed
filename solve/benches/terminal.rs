@@ -4,7 +4,7 @@ use greed_solve::{DpSolver, State};
 fn terminal_states(c: &mut Criterion) {
     let mut group = c.benchmark_group("terminal_states");
 
-    const RULESETS: [(u16, u16); 3] = [(25, 4), (100, 6), (250, 20)];
+    const RULESETS: [(u32, u32); 3] = [(25, 4), (100, 6), (250, 20)];
 
     for ruleset in RULESETS {
         // satisfy invariants

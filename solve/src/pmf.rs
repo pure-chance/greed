@@ -13,7 +13,7 @@ pub struct PMFLookup {
     /// Starting offsets for each n-dice PMF.
     offsets: Box<[usize]>,
     /// Maximum number of dice.
-    max_n: u16,
+    max_n: u32,
 }
 
 impl Default for PMFLookup {
@@ -34,7 +34,7 @@ impl PMFLookup {
     /// convolution for efficient computation and creates optimized lookup
     /// tables.
     #[must_use]
-    pub fn precompute(max: u16, sides: u16) -> Self {
+    pub fn precompute(max: u32, sides: u32) -> Self {
         let max_n = (2 * (max + sides) / (sides + 1)).max(max + 1);
 
         let mut pmf_table: Vec<Vec<f64>> = Vec::with_capacity(max_n as usize + 1);
@@ -80,7 +80,7 @@ impl PMFLookup {
     }
 }
 
-impl Index<(u16, u16)> for PMFLookup {
+impl Index<(u32, u32)> for PMFLookup {
     type Output = f64;
 
     /// Returns a reference to the PMF value P(sum = total | n dice).
@@ -89,7 +89,7 @@ impl Index<(u16, u16)> for PMFLookup {
     ///
     /// Caller must ensure `n` ≤ `max_n` and `total` ≥ `n`.
     #[inline]
-    fn index(&self, (n, total): (u16, u16)) -> &Self::Output {
+    fn index(&self, (n, total): (u32, u32)) -> &Self::Output {
         debug_assert!(n <= self.max_n, "n={} exceeds max_n={}", n, self.max_n);
         debug_assert!(total >= n, "total={total} less than n={n}");
         unsafe {
@@ -100,13 +100,13 @@ impl Index<(u16, u16)> for PMFLookup {
     }
 }
 
-impl IndexMut<(u16, u16)> for PMFLookup {
+impl IndexMut<(u32, u32)> for PMFLookup {
     /// Returns a mutable reference to the PMF value P(sum = total | n dice).
     ///
     /// # Safety
     ///
     /// Caller must ensure `n` ≤ `max_n` and `total` ≥ `n`.
-    fn index_mut(&mut self, (n, total): (u16, u16)) -> &mut Self::Output {
+    fn index_mut(&mut self, (n, total): (u32, u32)) -> &mut Self::Output {
         debug_assert!(n <= self.max_n, "n={} exceeds max_n={}", n, self.max_n);
         debug_assert!(total >= n, "total={total} less than n={n}");
         unsafe {

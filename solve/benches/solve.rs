@@ -4,7 +4,7 @@ use greed_solve::DpSolver;
 fn all_states(c: &mut Criterion) {
     let mut group = c.benchmark_group("all_states");
 
-    const RULESETS: [(u16, u16); 3] = [(25, 4), (100, 6), (250, 20)];
+    const RULESETS: [(u32, u32); 3] = [(25, 4), (100, 6), (250, 20)];
 
     // Benchmark: complete solve
     for ruleset in RULESETS {

@@ -56,7 +56,7 @@ pub struct DpSolver {
 impl DpSolver {
     /// Create a new solver for the specified game parameters.
     #[must_use]
-    pub fn new(max: u16, sides: u16) -> Self {
+    pub fn new(max: u32, sides: u32) -> Self {
         Self {
             ruleset: Ruleset::new(max, sides),
             policy: Policy::new(max),
@@ -92,12 +92,12 @@ impl DpSolver {
     }
     /// Returns the maximum score for this game configuration.
     #[must_use]
-    pub const fn max(&self) -> u16 {
+    pub const fn max(&self) -> u32 {
         self.ruleset.max()
     }
     /// Returns the number of sides on each die for this game configuration.
     #[must_use]
-    pub const fn sides(&self) -> u16 {
+    pub const fn sides(&self) -> u32 {
         self.ruleset.sides()
     }
 }
@@ -172,7 +172,7 @@ impl DpSolver {
     /// - Lose: final score < opponent's score or > max (bust)
     /// - Tie: final score = opponent's score
     #[must_use]
-    pub fn calc_terminal_payoff(&self, state: State, dice_rolled: u16) -> f64 {
+    pub fn calc_terminal_payoff(&self, state: State, dice_rolled: u32) -> f64 {
         if dice_rolled == 0 {
             return match state.active().cmp(&state.queued()) {
                 Ordering::Less => -1.0,
@@ -269,7 +269,7 @@ impl DpSolver {
     /// All reachable future states must already be solved for correct payoff
     /// lookup.
     #[must_use]
-    pub fn calc_normal_payoff(&self, state: State, dice_rolled: u16) -> f64 {
+    pub fn calc_normal_payoff(&self, state: State, dice_rolled: u32) -> f64 {
         if dice_rolled == 0 {
             let terminal_state = State::new(state.queued(), state.active(), true);
             return -self.policy[terminal_state].payoff();
