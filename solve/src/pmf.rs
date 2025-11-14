@@ -118,6 +118,7 @@ impl IndexMut<(u32, u32)> for PMFLookup {
     }
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
 

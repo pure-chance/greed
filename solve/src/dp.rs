@@ -305,6 +305,7 @@ impl Solver for DpSolver {
     }
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
 
