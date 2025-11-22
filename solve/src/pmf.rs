@@ -58,6 +58,7 @@ impl PMFLookup {
             max_n,
         }
     }
+
     /// Returns the convolution of a given PMF with the uniform PMF of a single
     /// die with given number of `sides`.
     ///

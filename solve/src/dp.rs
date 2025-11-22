@@ -63,6 +63,7 @@ impl DpSolver {
             pmfs: PMFLookup::default(),
         }
     }
+
     /// Precompute probability mass functions for all strategically relevant
     /// dice counts.
     ///
@@ -77,6 +78,7 @@ impl DpSolver {
     pub fn precompute_pmfs(&mut self) {
         self.pmfs = PMFLookup::precompute(self.max(), self.sides());
     }
+
     /// Compute the complete optimal policy for this game configuration.
     ///
     /// Performs the full two-stage solve: terminal states first, then normal
@@ -90,6 +92,7 @@ impl DpSolver {
         // Solve all the normal states (in the correct order).
         self.solve_normal_states();
     }
+
     /// Returns the maximum score for this game configuration.
     #[must_use]
     pub const fn max(&self) -> u32 {
@@ -122,6 +125,7 @@ impl DpSolver {
             self.policy[state] = action;
         }
     }
+
     /// Find the optimal number of dice to roll in a terminal state.
     ///
     /// Uses the mathematical property that terminal payoff functions are
@@ -163,6 +167,7 @@ impl DpSolver {
 
         optimal_action
     }
+
     /// Calculate expected payoff for rolling a specific number of dice in a
     /// terminal state.
     ///
@@ -231,6 +236,7 @@ impl DpSolver {
             }
         }
     }
+
     /// Find the optimal number of dice to roll in a normal (non-terminal)
     /// state.
     ///
@@ -256,6 +262,7 @@ impl DpSolver {
             .unwrap();
         Action::new(optimal_roll, optimal_payoff)
     }
+
     /// Calculate expected payoff for rolling a specific number of dice in a
     /// normal state.
     ///
@@ -292,6 +299,7 @@ impl Solver for DpSolver {
     fn ruleset(&self) -> Ruleset {
         self.ruleset
     }
+
     /// Returns the policy computed by the solver.
     fn policy(&mut self) -> Policy {
         self.solve();

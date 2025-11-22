@@ -25,11 +25,13 @@ impl Ruleset {
     pub const fn new(max: u32, sides: u32) -> Self {
         Self { max, sides }
     }
+
     /// Get the maximum score allowed before busting.
     #[must_use]
     pub const fn max(&self) -> u32 {
         self.max
     }
+
     /// Get the number of sides on each die.
     #[must_use]
     pub const fn sides(&self) -> u32 {
@@ -63,16 +65,19 @@ impl State {
             last,
         }
     }
+
     /// Return the score of actively rolling player.
     #[must_use]
     pub const fn active(&self) -> u32 {
         self.active
     }
+
     /// Return the score queued player.
     #[must_use]
     pub const fn queued(&self) -> u32 {
         self.queued
     }
+
     /// Return the flag indicating whether this is the final round of the game.
     #[must_use]
     pub const fn last(&self) -> bool {
@@ -102,11 +107,13 @@ impl Action {
     pub const fn new(n: u32, payoff: f64) -> Self {
         Self { n, payoff }
     }
+
     /// Get the number of dice to roll.
     #[must_use]
     pub const fn n(&self) -> u32 {
         self.n
     }
+
     /// Get the expected payoff.
     #[must_use]
     pub const fn payoff(&self) -> f64 {
@@ -148,6 +155,7 @@ impl Policy {
         let policy = vec![Action::default(); size].into_boxed_slice();
         Self { policy, max }
     }
+
     /// Returns an iterator over all state-action pairs in the policy.
     pub fn iter(&self) -> impl Iterator<Item = (State, Action)> + '_ {
         (0..=self.max).flat_map(move |active| {
@@ -160,6 +168,7 @@ impl Policy {
             })
         })
     }
+
     /// Output the complete policy in human-readable format to stdout.
     ///
     /// Prints all state-action pairs sorted by state type and scores, useful
@@ -194,6 +203,7 @@ impl Policy {
             );
         }
     }
+
     /// Export the policy to a CSV file for external analysis or visualization.
     ///
     /// Creates a CSV with columns: active, queued, last, n, payoff

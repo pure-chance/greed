@@ -67,6 +67,7 @@ impl Greed {
             turn: 0,
         }
     }
+
     /// Print the game banner.
     fn banner(max: u32, sides: u32) {
         let ruleset = format!("max score: {max}, sides: {sides}");
@@ -75,6 +76,7 @@ impl Greed {
         println!("{BANNER}");
         println!("{pad}{ruleset}", pad = " ".repeat(padding));
     }
+
     /// Print the game state.
     fn game_state(&self) {
         let final_flag = if self.state.last { " [FINAL]" } else { "" };
@@ -88,6 +90,7 @@ impl Greed {
             final_flag
         );
     }
+
     /// Print the game results.
     fn results(&self) {
         println!();
@@ -159,6 +162,7 @@ impl Greed {
             println!("{} and {} tie!", winners[0], winners[1]);
         }
     }
+
     /// Get the active player's name.
     fn active_player(&self) -> &str {
         if self.turn % 2 == 0 {
@@ -167,6 +171,7 @@ impl Greed {
             &self.players.1
         }
     }
+
     /// Get the queued player's name.
     fn queued_player(&self) -> &str {
         if self.turn % 2 == 0 {
@@ -175,6 +180,7 @@ impl Greed {
             &self.players.0
         }
     }
+
     /// Get the active player's score.
     fn player_1(&self) -> u32 {
         if self.turn % 2 == 0 {
@@ -183,6 +189,7 @@ impl Greed {
             self.state.queued()
         }
     }
+
     /// Get the queued player's score.
     fn player_2(&self) -> u32 {
         if self.turn % 2 == 0 {
@@ -191,6 +198,7 @@ impl Greed {
             self.state.active()
         }
     }
+
     /// Simulate rolling `n` dice.
     fn roll(&mut self, n: u32) -> bool {
         let sum = (0..n).fold(0, |acc, _| {
@@ -211,6 +219,7 @@ impl Greed {
         }
         false
     }
+
     /// Start an interactive game of Greed between two players.
     ///
     /// Players take turns entering the number of dice to roll. The game
@@ -267,11 +276,13 @@ impl Ruleset {
     pub const fn new(max: u32, sides: u32) -> Self {
         Self { max, sides }
     }
+
     /// Get the maximum score allowed before busting.
     #[must_use]
     pub const fn max(&self) -> u32 {
         self.max
     }
+
     /// Get the number of sides on each die.
     #[must_use]
     pub const fn sides(&self) -> u32 {
@@ -305,16 +316,19 @@ impl State {
             last,
         }
     }
+
     /// Return the score of actively rolling player.
     #[must_use]
     pub const fn active(&self) -> u32 {
         self.active
     }
+
     /// Return the score queued player.
     #[must_use]
     pub const fn queued(&self) -> u32 {
         self.queued
     }
+
     /// Return the flag indicating whether this is the final round of the game.
     #[must_use]
     pub const fn last(&self) -> bool {
