@@ -49,7 +49,7 @@ impl PMFLookup {
 
         let data: Box<[f64]> = pmf_table.into_iter().flat_map(Vec::into_iter).collect();
         let offsets: Box<[usize]> = (0..=max_n)
-            .map(|n| ((sides - 1) * (n * (n - 1) / 2) + n) as usize)
+            .map(|n| (n + (sides.saturating_sub(1) * n * n.saturating_sub(1) / 2)) as usize)
             .collect();
 
         Self {
