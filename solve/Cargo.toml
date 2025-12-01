@@ -26,7 +26,6 @@ all = "warn"
 pedantic = "warn"
 nursery = "warn"
 cargo = "warn"
-missing_docs = "warn"
 
 [[bench]]
 name = "pmf"
