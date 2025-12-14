@@ -1,7 +1,7 @@
 // preamble ====================================================================
 
-#import "template/lib.typ": paper, theorion
-#import theorion: *
+#import "template/lib.typ": paper, theoretic
+#import theoretic: *
 
 #show: paper.with(
   title: [A Policy Optimization of Greed],
@@ -35,7 +35,7 @@ With the ruleset defined, the game can begin.
 #definition(title: "Greed")[
   Let the ruleset for this game be $(M, s)$.
 
-  The game is played between two players, *Alice* and *Blair*. Each player begins with an initial score of $0$. Let $a, b in NN_0$ denote the scores of Alice and Blair, respectively.
+  The game is played between two players, Alice and Blair. Each player begins with an initial score of $0$. Let $a, b in NN_0$ denote the scores of Alice and Blair, respectively.
 
   A starting player is chosen, typically by having both players roll a die and selecting the player with the higher result (re-rolling in case of a tie).
 
@@ -158,13 +158,13 @@ Practically, this means we memoize the results of previously computed states to 
 == Terminal States
 For terminal states, the problem is simple: find some $n$ that maximizes the probability that your sum $t$ will yield $a + t in [q, M]$. More precisely, for a game state $(a, q, T)$ we optimize the expected payoff
 
-#equation[$
+#equation(label: <prop:upper-bound-actions>)[$
   n_star := max_(n in [0, oo)) sum_(t = n)^(s n) cases(
     1 &"if" q < a + t <= M,
     0 &"if" a + t = q,
     -1 &"otherwise",
   )
-$] <prop:upper-bound-actions>
+$]
 
 Of course, it's impossible to test every possible $n$ in practice. Luckily, there is an upper bound on the optimal $n$ that can be derived from the game's parameters. Specifically, we can show that #proposition(title: "Upper Bound on Actions")[
   In a state $(a, q, l)$, the optimal number of dice to roll satisfies $

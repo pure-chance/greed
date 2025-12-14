@@ -1,4 +1,4 @@
-#import "packages/theorion.typ": *
+#import "packages/theoretic.typ": *
 #import "packages/zebraw.typ": *
 
 #let stylize() = contents => {
@@ -62,7 +62,7 @@
   set math.equation(numbering: "(1)")
 
   // packages --
-  show: show-theorion
+  show ref: theoretic.show-ref
   show: zebraw.with(indentation: 4)
 
   contents
