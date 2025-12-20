@@ -184,7 +184,9 @@ Of course, it's impossible to test every possible $n$ in practice. Luckily, ther
 
 This is a reasonable upper bound. But we can actually do better. Running simulations on a wide set of n, we find that the payoff function is unimodal with respect to $n$. This means that once the payoff starts decreasing, we can stop testing further $n$ and take the maximum.
 
-#note[The following optimization is not used in @greed (the greed solver source code).]
+#note[
+  The following optimization is not used in @greed (the greed solver source code).
+]
 
 In addition to the above, it's possible to leverage previous knowledge to narrow the score of $n$ to test even more.
 
@@ -225,13 +227,11 @@ The following visualizations present the computed optimal policies and their ass
 )
 
 #place(auto, scope: "parent", float: true)[
-  #block(height: 100%)[
-    #grid(
-      columns: 1, gutter: 2em,
-      box[#payoffs <fig:payoffs>],
-      box[#rolls <fig:rolls>],
-    )
-  ]
+  #grid(
+    columns: 1, gutter: 1em,
+    box[#payoffs <fig:payoffs>],
+    box[#rolls <fig:dice-counts>],
+  )
 ]
 
 == A Game of Chicken
