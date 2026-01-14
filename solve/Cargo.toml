@@ -7,7 +7,7 @@ readme = "README.md"
 license_file = "LICENSE"
 repository = "https://github.com/pure-chance/greed"
 keywords = ["statistics", "analysis", "optimization"]
-categories = ["mathematics", "algorithms", "simulation" ]
+categories = ["mathematics", "algorithms", "simulation"]
 
 [dependencies]
 csv = "1.3.0"
