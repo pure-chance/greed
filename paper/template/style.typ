@@ -8,8 +8,7 @@
     paper: "a4",
     margin: (x: 1.25cm, y: 1.25cm)
   )
-
-  set columns(gutter: 1.5em)
+  set columns(gutter: 0.5cm)
 
   // Configure text properties --
   set text(font: "Libertinus Serif", size: 11pt, weight: "regular")
@@ -17,7 +16,10 @@
 
   // Configure paragraph properties --
   set par(
-    spacing: 0.45em, justify: true, first-line-indent: 1em, leading: 0.45em
+    spacing: 0.45em,
+    justify: true,
+    first-line-indent: 1em,
+    leading: 0.45em
   )
 
   // Configure heading properties --
@@ -33,16 +35,21 @@
     }
   }
 
-  show heading.where(level: 1): set text(size: 13pt, style: "normal", weight: "bold")
-  show heading.where(level: 2): set text(size: 11pt, style: "normal", weight: "bold")
-  show heading: it => {
-    if it.level >= 3 {
-      set text(size: 11pt, style: "italic", weight: "regular")
-      it
-    } else {
-      it // passthrough
-    }
-  }
+  show heading.where(level: 1): set text(
+    size: 13pt,
+    style: "normal",
+    weight: "bold"
+  )
+  show heading.where(level: 2): set text(
+    size: 11pt,
+    style: "normal",
+    weight: "bold"
+  )
+  show heading.where(level: 3): set text(
+    size: 11pt,
+    style: "italic",
+    weight: "regular"
+  )
 
   // Configure figures & captions --
   show figure: set block(breakable: true)
