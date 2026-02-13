@@ -8,7 +8,7 @@
     paper: "a4",
     margin: (x: 1.25cm, y: 1.25cm)
   )
-  set columns(gutter: 0.5cm)
+  set columns(gutter: 0.65cm)
 
   // Configure text properties --
   set text(font: "Libertinus Serif", size: 11pt, weight: "regular")
@@ -51,10 +51,12 @@
     weight: "regular"
   )
 
-  // Configure figures & captions --
+  // figures & captions --
   show figure: set block(breakable: true)
-  show figure: set figure(supplement: "Fig.")
   show figure.caption: set align(left)
+  show figure.where(kind: table): set figure(supplement: [Table])
+  show figure.where(kind: raw): set figure(supplement: [Code])
+  set figure(supplement: [Fig.])
   set figure.caption(separator: [|])
   show figure.caption: it => [
     #strong[
@@ -64,6 +66,16 @@
     ]
     #it.body
   ]
+
+  // tables --
+  show table.cell.where(y: 0): strong
+  set table(
+    stroke: (x, y) => if y == 0 {
+      (bottom: 0.7pt + black)
+    }
+  )
+  show table: set align(center)
+
 
   // math --
   set math.equation(numbering: "(1)")

@@ -51,12 +51,19 @@ With the ruleset defined, the game can begin.
 
   The outcome can be represented as a zero-sum outcome function $O: {"Alice", "Blair"} -> {-1, 0, 1}$, given by:
 
-  #table(
+  #let payoff-matrix = table(
     columns: 3,
-    table.header[][Alice’s Payoff][Blair’s Payoff],
+    align: (left, right, right),
+    table.header([Outcome], [Alice], [Blair]),
     [Alice wins], [$+1$], [$-1$],
     [Blair wins], [$-1$], [$+1$],
     [Tie], [$0$], [$0$],
+  )
+
+  #figure(
+    payoff-matrix,
+    alt: "Payoff Matrix",
+    caption: [Payoff Matrix],
   )
 ]
 
