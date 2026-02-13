@@ -158,13 +158,13 @@ Practically, this means we memoize the results of previously computed states to 
 == Terminal States
 For terminal states, the problem is simple: find some $n$ that maximizes the probability that your sum $t$ will yield $a + t in [q, M]$. More precisely, for a game state $(a, q, T)$ we optimize the expected payoff
 
-#equation(label: <prop:upper-bound-actions>)[$
+$
   n_star := max_(n in [0, oo)) sum_(t = n)^(s n) cases(
     1 &"if" q < a + t <= M,
     0 &"if" a + t = q,
     -1 &"otherwise",
   )
-$]
+$ <prop:upper-bound-actions>
 
 Of course, it's impossible to test every possible $n$ in practice. Luckily, there is an upper bound on the optimal $n$ that can be derived from the game's parameters. Specifically, we can show that #proposition(title: "Upper Bound on Actions")[
   In a state $(a, q, l)$, the optimal number of dice to roll satisfies $
@@ -199,11 +199,9 @@ For normal states, optimization is more complex, as it becomes necessary to cons
 
 Consider the max score $(M, M, F)$. In this state, the active player is forced to roll $0$ dice, or otherwise lose. Thus the _only_ potentially non-negative payoff is to roll $0$ dice; this is the optimal policy. The payoff for the opponent is whatever the payoff of the terminal state $(M, M, T)$. Since this is a zero-sum game, our score is the negative of the opponent's score.
 
-Now consider two states $(M - 1, M, F), (M, M - 1, F)$. In these states, the only possible next states are busts, $(M, M, F)$, or terminal states. Therefore, the payoffs of the next states are all previously computed. Thus the optimal policy for a state $s = (a, q, F)$ can be computed by
-
-#equation[$
+Now consider two states $(M - 1, M, F), (M, M - 1, F)$. In these states, the only possible next states are busts, $(M, M, F)$, or terminal states. Therefore, the payoffs of the next states are all previously computed. Thus the optimal policy for a state $s = (a, q, F)$ can be computed by $
   n_star := max_(n in NN) sum_(t = n)^(s) bold(p)(t | n, s) dot.op Q(s, a)
-$]
+$
 
 This continues until $(0, 0, F)$, at which point all normal states have been computed.
 
