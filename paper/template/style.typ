@@ -65,7 +65,7 @@
     #it.body
   ]
 
-  // math
+  // math --
   set math.equation(numbering: "(1)")
 
   // packages --
