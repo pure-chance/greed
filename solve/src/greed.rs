@@ -1,10 +1,8 @@
 use std::ops::{Index, IndexMut};
 
-/// Game rules for Greed.
+/// The ruleset for a game of Greed.
 ///
-/// Defines the maximum allowable score and the number of sides on each die.
-/// The standard ruleset is (100, 6) representing a maximum score of 100 with
-/// 6-sided dice.
+/// The standard ruleset is `(100, 6)`.
 #[derive(Debug, Copy, Clone)]
 pub struct Ruleset {
     /// Maximum score allowed before busting (typically 100).
@@ -20,7 +18,10 @@ impl Default for Ruleset {
 }
 
 impl Ruleset {
-    /// Create a new ruleset.
+    /// Create a new ruleset with the given maximum score and die size.
+    ///
+    /// Both values should be non-zero. A `sides` of 0 will cause division
+    /// by zero in the solver; a `max` of 0 makes every roll a bust.
     #[must_use]
     pub const fn new(max: u32, sides: u32) -> Self {
         Self { max, sides }
@@ -39,19 +40,14 @@ impl Ruleset {
     }
 }
 
-/// A game state in Greed, representing scores and turn information.
-///
-/// States are represented from the perspective of the current player:
-/// - `active`: Current player's score
-/// - `queued`: Next player's score
-/// - `last`: Whether we're in the final round (triggered when a player stands)
+/// A game state in Greed, viewed from the perspective of the active player.
 #[derive(Debug, Copy, Clone, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct State {
     /// The score of the player whose turn it is.
     active: u32,
     /// The score of the player whose turn is up next.
     queued: u32,
-    /// Whether this is the final round of the game.
+    /// Whether this is the last round of the game.
     last: bool,
 }
 
@@ -66,35 +62,37 @@ impl State {
         }
     }
 
-    /// Return the score of actively rolling player.
+    /// Return the score of active player.
     #[must_use]
     pub const fn active(&self) -> u32 {
         self.active
     }
 
-    /// Return the score queued player.
+    /// Return the score of the queued player.
     #[must_use]
     pub const fn queued(&self) -> u32 {
         self.queued
     }
 
-    /// Return the flag indicating whether this is the final round of the game.
+    /// Return whether this is the last round.
     #[must_use]
     pub const fn last(&self) -> bool {
         self.last
     }
 }
 
-/// An (optimal) action for a given game state, containing the number of dice to
-/// roll and expected payoff.
+/// An (optimal) action for a single game state.
 ///
-/// The payoff represents the expected value (probability of winning minus
-/// probability of losing) when following the optimal strategy from this state.
-/// Values range from -1.0 (certain loss) to 1.0 (certain win), with 0.0
-/// representing equal chances.
+/// An action consists of a number of dice to roll (`n`) and a payoff
+/// (`payoff`).
+///
+/// A payoff is a scaler in \[−1, 1\], a uniform scale where:
+/// - `-1.0` = certain loss
+/// - `0.0` = balanced (or guaranteed tie).
+/// - `1.0` = certain victory
 #[derive(Debug, Copy, Clone, Default)]
 pub struct Action {
-    /// The number of dice to roll (0 means stand/pass).
+    /// The number of dice to roll, with 0 meaning stand/pass.
     n: u32,
     /// The expected payoff when following optimal strategy (-1.0 to 1.0).
     payoff: f64,
@@ -121,19 +119,19 @@ impl Action {
     }
 }
 
-/// Stores the policy for a Greed game as a lookup table.
+/// A Greed policy.
 ///
-/// Maps every possible game state to its optimal action. The policy covers both
-/// terminal states (final round) and normal states, storing them in a
-/// cache-efficient flat array structure.
+/// A *policy* is a mapping from game states to actions. An *optimal policy* is
+/// a policy that maximizes the expected payoff for each game state.
 ///
-/// # Memory Layout
+/// # Memory layout
 ///
-/// States are stored in a single contiguous array indexed by: active + (max+1)
-/// * queued + (max+1)^2 * last
+/// States are packed into a contiguous `Box<[Action]>` indexed by `active +
+/// (max + 1) * queued + (max + 1)² * last`
 ///
-/// This layout improves cache performance by keeping related states close
-/// together.
+/// This keeps states that share the same `queued` and `last` values
+/// adjacent, which is friendly to the solver's inner loops (they iterate
+/// over possible `active` outcomes for a fixed opponent score).
 #[derive(Debug, Clone, Default)]
 pub struct Policy {
     /// The optimal action for each state.
@@ -147,8 +145,7 @@ pub struct Policy {
 impl Policy {
     /// Creates a new empty policy table for the given maximum score.
     ///
-    /// Allocates space for all possible states: (max+1)² normal states +
-    /// (max+1)² terminal states.
+    /// Allocates space for all `2(max+1)²` possible states.
     #[must_use]
     pub fn new(max: u32) -> Self {
         let size = ((max + 1) * (max + 1) * 2) as usize;
@@ -156,7 +153,7 @@ impl Policy {
         Self { policy, max }
     }
 
-    /// Returns an iterator over all state-action pairs in the policy.
+    /// Iterate over every `(State, Action)` pair in the table.
     pub fn iter(&self) -> impl Iterator<Item = (State, Action)> + '_ {
         (0..=self.max).flat_map(move |active| {
             (0..=self.max).flat_map(move |queued| {
@@ -169,10 +166,7 @@ impl Policy {
         })
     }
 
-    /// Output the complete policy in human-readable format to stdout.
-    ///
-    /// Prints all state-action pairs sorted by state type and scores, useful
-    /// for analysis and debugging.
+    /// Print the full policy to stdout in a human-readable format.
     pub fn stdout(&self) {
         let mut state_action_pairs: Vec<(State, Action)> = self.iter().collect();
         state_action_pairs.sort_by_key(|(state, _)| (state.last(), state.active(), state.queued()));
@@ -204,17 +198,19 @@ impl Policy {
         }
     }
 
-    /// Export the policy to a CSV file for external analysis or visualization.
+    /// Export the policy to a CSV file.
     ///
-    /// Creates a CSV with columns: active, queued, last, n, payoff
+    /// The CSV has columns `active, queued, last, n, payoff` and one row per
+    /// state. Parent directories are created automatically.
     ///
     /// # Errors
     ///
-    /// Returns an error if the file cannot be created or written to.
+    /// Returns an error if the file cannot be created or written to, or if
+    /// the path has no parent directory component.
     ///
     /// # Panics
     ///
-    /// Panics if file path does not have a parent directory.
+    /// Panics if the path does not have a parent.
     pub fn csv(&self, path: &str) -> Result<(), csv::Error> {
         std::fs::create_dir_all(std::path::Path::new(path).parent().unwrap())?;
         let mut writer = csv::Writer::from_path(path)?;

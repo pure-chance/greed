@@ -1,12 +1,21 @@
 use std::ops::{Index, IndexMut};
 
-/// Lookup table for dice roll probability mass functions.
+/// Lookup table for dice-roll probability mass functions (PMFs).
 ///
-/// Precomputes and stores PMFs for all dice counts up to a maximum, enabling
-/// O(1) lookup of P(sum = k | n dice). This is the performance-critical
-/// component of the solver, as PMF lookups occur millions of times during
-/// policy computation.
-#[derive(Debug, Clone)]
+/// Precomputes and stores the PMF for every dice count from 0 to an upper
+/// bound, enabling O(1) lookup of P(sum = k | n dice, s sides). This is the
+/// performance-critical data structure of the solver — PMF lookups happen
+/// millions of times during policy computation.
+///
+/// # Layout
+///
+/// All PMF values are stored in a single contiguous `Box<[f64]>`. A separate
+/// `offsets` array records where each dice-count's PMF begins.
+///
+/// For `n` dice with `s` sides the possible sums run from `n` to `n * s`,
+/// giving `n * (s - 1) + 1` values. Indexing with `(n, total)` is translated to
+/// `data[offsets[n] + (total - n)]`.
+#[derive(Default, Debug, Clone)]
 pub struct PMFLookup {
     /// Flat array containing all PMF data.
     data: Box<[f64]>,
@@ -27,12 +36,19 @@ impl Default for PMFLookup {
 }
 
 impl PMFLookup {
-    /// Precompute all required PMFs for the given game parameters.
+    /// Precompute all PMFs required by a game with the given parameters.
     ///
-    /// Generates PMFs for 0 to `max_n` dice, where `max_n` is determined by the
-    /// largest number of dice that could be strategically relevant. Uses FFT
-    /// convolution for efficient computation and creates optimized lookup
-    /// tables.
+    /// Generates PMFs for 0 through `max_n` dice, where `max_n` is the
+    /// largest dice count that could ever be optimal. The upper bound is
+    /// derived from the point where the expected sum exceeds the maximum score.
+    ///
+    /// ```text
+    /// max_n = floor(2 * (max + sides) / (sides + 1))
+    /// ```
+    ///
+    /// Each successive PMF is computed by convolving the previous one with
+    /// the single-die uniform distribution, using an efficient sliding-window
+    /// algorithm (see [`Self::convolve_uniform`]).
     #[must_use]
     pub fn precompute(max: u32, sides: u32) -> Self {
         let max_n = (2 * (max + sides) / (sides + 1)).max(max + 1);
@@ -59,10 +75,11 @@ impl PMFLookup {
         }
     }
 
-    /// Returns the convolution of a given PMF with the uniform PMF of a single
-    /// die with given number of `sides`.
+    /// Convolve `pmf` with the uniform distribution on {1, …, `sides`}.
     ///
-    /// This is implemented using a sliding window approach for performance.
+    /// Computes the PMF of `X + U` where `X` has the given `pmf` and `U` is
+    /// uniform on a single die. Implemented as a sliding window over a
+    /// running sum, giving O(|X|) time regardless of `sides`.
     #[must_use]
     pub fn sliding_window_convolution(pmf: &[f64], sides: usize) -> Vec<f64> {
         let mut convolution = Vec::with_capacity(pmf.len() + sides - 1);
