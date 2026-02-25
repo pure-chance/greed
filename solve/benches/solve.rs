@@ -1,5 +1,5 @@
 use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
-use greed_solve::DpSolver;
+use greed_solve::Solver;
 
 fn all_states(c: &mut Criterion) {
     let mut group = c.benchmark_group("all_states");
@@ -13,7 +13,7 @@ fn all_states(c: &mut Criterion) {
             &ruleset,
             |b, &ruleset| {
                 b.iter(|| {
-                    let mut solver = DpSolver::new(black_box(ruleset.0), black_box(ruleset.1));
+                    let mut solver = Solver::new(black_box(ruleset.0), black_box(ruleset.1));
                     solver.solve();
                 });
             },

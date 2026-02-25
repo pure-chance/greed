@@ -21,12 +21,10 @@
 //! completed, the game ends. The player with the higher score wins; if both
 //! players have the same score, the game is declared a draw.
 
-mod dp;
 mod greed;
 mod pmf;
 mod solver;
 
-pub use dp::DpSolver;
 pub use greed::{Action, Policy, Ruleset, State};
 pub use pmf::PMFLookup;
 pub use solver::Solver;

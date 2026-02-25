@@ -12,7 +12,7 @@
 //! ```
 
 use clap::{Arg, Command};
-use greed_solve::{DpSolver, Solver};
+use greed_solve::Solver;
 
 fn main() {
     let cli = Command::new("solve")
@@ -57,14 +57,11 @@ fn main() {
 
     let max = *args.get_one::<u32>("max").unwrap();
     let sides = *args.get_one::<u32>("sides").unwrap();
-    let method = args.get_one::<String>("method").unwrap().as_str();
     let format = args.get_one::<String>("format").unwrap().as_str();
 
-    let policy = match method {
-        "dp" => DpSolver::new(max, sides).policy(),
-        "rl" => todo!(),
-        _ => unreachable!("clap will panic if --method is not dp or rl"),
-    };
+    let mut solver = Solver::new(max, sides);
+    solver.solve();
+    let policy = solver.policy();
 
     match format {
         "stdout" => policy.stdout(),
