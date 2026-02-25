@@ -25,16 +25,6 @@ pub struct PMFLookup {
     max_n: u32,
 }
 
-impl Default for PMFLookup {
-    fn default() -> Self {
-        Self {
-            data: Box::new([]),
-            offsets: Box::new([]),
-            max_n: 0,
-        }
-    }
-}
-
 impl PMFLookup {
     /// Precompute all PMFs required by a game with the given parameters.
     ///
@@ -59,7 +49,7 @@ impl PMFLookup {
 
         for n in 2..=max_n as usize {
             let pmf = &pmf_table[n - 1];
-            let convolution = Self::sliding_window_convolution(pmf, sides as usize);
+            let convolution = Self::convolve_uniform(pmf, sides);
             pmf_table.push(convolution);
         }
 
@@ -81,18 +71,18 @@ impl PMFLookup {
     /// uniform on a single die. Implemented as a sliding window over a
     /// running sum, giving O(|X|) time regardless of `sides`.
     #[must_use]
-    pub fn sliding_window_convolution(pmf: &[f64], sides: usize) -> Vec<f64> {
-        let mut convolution = Vec::with_capacity(pmf.len() + sides - 1);
+    pub fn convolve_uniform(pmf: &[f64], sides: u32) -> Vec<f64> {
+        let convolution_len = pmf.len() + sides as usize - 1;
+        let mut convolution = Vec::with_capacity(convolution_len);
         let mut running_sum = 0.0;
-        for i in 0..(pmf.len() + sides - 1) {
+        for i in 0..convolution_len {
             if i < pmf.len() {
                 running_sum += pmf[i];
             }
-            if i >= sides {
-                running_sum -= pmf[i - sides];
+            if i >= sides as usize {
+                running_sum -= pmf[i - sides as usize];
             }
-            #[allow(clippy::cast_precision_loss)]
-            convolution.push(running_sum / sides as f64);
+            convolution.push(running_sum / f64::from(sides));
         }
         convolution
     }
