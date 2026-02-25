@@ -11,11 +11,7 @@
   set columns(gutter: 6mm)
 
   // Configure text properties --
-  set text(
-    font: ("Libertinus Serif", "Libertinus Math"),
-    size: 10pt,
-    weight: "regular",
-  )
+  set text(font: "Libertinus Sans", size: 10pt, weight: "regular")
   show raw: set text(font: "Maple Mono NF")
 
   // Configure paragraph properties --
@@ -28,7 +24,7 @@
 
   // Configure heading properties --
   set heading(numbering: "1.1.")
-  show heading: set text(font: "Libertinus Sans", size: 10pt)
+  show heading: set text(font: "Libertinus Sans", size: 12pt)
   show heading.where(level: 1): it => {
     set block(above: 1.6em, below: 0.8em)
     it
@@ -36,23 +32,21 @@
   show heading: it => {
     if 1 < it.level {
       // inline heading
+      set text(size: 10pt)
       let heading = counter(heading).display(it.numbering) + h(0.2em) + it.body
       block(below: 0pt) + heading + [.]
     } else { it }
   }
 
   show heading.where(level: 1): set text(
-    size: 12pt,
     style: "normal",
     weight: "bold"
   )
   show heading.where(level: 2): set text(
-    size: 10pt,
     style: "normal",
     weight: "bold"
   )
   show heading.where(level: 3): set text(
-    size: 10pt,
     style: "italic",
     weight: "regular"
   )
