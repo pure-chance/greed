@@ -9,8 +9,8 @@ function visualize(file_path::String, plot::Symbol=:payoff)::Figure
     df = CSV.read(file_path, DataFrame)
     max = Int(floor(sqrt(nrow(df) / 2 - 1)))
 
-    hm_normal = reshape(df[df.last .== false, plot], max+1, max+1)'
-    hm_terminal = reshape(df[df.last .== true, plot], max+1, max+1)'
+    hm_normal = reshape(df[df.last.==false, plot], max + 1, max + 1)'
+    hm_terminal = reshape(df[df.last.==true, plot], max + 1, max + 1)'
 
     type = (plot == :payoff) ? "Payoffs" : "Dice Counts"
 
@@ -33,8 +33,8 @@ function visualize(file_path::String, plot::Symbol=:payoff)::Figure
     )
 
     colormap = (plot == :payoff) ?
-        cgrad(["#e64553", "#eff1f5", "#1e66f5"], [-1.0, 0.0, 1.0]) :
-        cgrad(["#eff1f5", "#209fb5", "#1e66f5"], [0.0, 0.5, 1.0])
+               cgrad(["#e64553", "#eff1f5", "#1e66f5"], [-1.0, 0.0, 1.0]) :
+               cgrad(["#eff1f5", "#209fb5", "#1e66f5"], [0.0, 0.5, 1.0])
 
     hm1 = heatmap!(ax1, 0:max, 0:max, hm_normal, colormap=colormap)
     hm2 = heatmap!(ax2, 0:max, 0:max, hm_terminal, colormap=colormap)
@@ -51,4 +51,7 @@ if @isdefined(ARGS) && length(ARGS) > 0
 
     save("optimal_values.svg", fig_payoffs)
     save("optimal_policy.svg", fig_rolls)
+else
+    print("Usage: julia visualize.jl <csv_path>\n")
+    exit(1)
 end
