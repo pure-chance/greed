@@ -12,10 +12,10 @@ Play continues back and forth until one player decides to roll 0 dice, signaling
 
 ## Project Structure
 
-- `/play`: Contains the code to play a game of Greed.
-- `/solve`: Contains the code to calculate the optimal policy and generate CSV data.
-- `/visualize`: Contains scripts to create visualizations from the CSV data.
-- `/paper`: Documents the mathematical theory and algorithms used.
+- `/play`: Interactive Greed TUI game. 
+- `/solve`: Optimal Policy Solver.
+- `/visualize`: Create visualizations from the optimal policy CSV data.
+- `/paper`: Document the mathematical theory and implementation of this problem.
 
 ## Usage
 
@@ -27,31 +27,19 @@ cargo run --release -- --max=100 --sides=6
 ```
 
 ```
- ██████╗ ██████╗ ███████╗███████╗██████╗
-██╔════╝ ██╔══██╗██╔════╝██╔════╝██╔══██╗
-██║  ███╗██████╔╝█████╗  █████╗  ██║  ██║
-██║   ██║██╔══██╗██╔══╝  ██╔══╝  ██║  ██║
-╚██████╔╝██║  ██║███████╗███████╗██████╔╝
- ╚═════╝ ╚═╝  ╚═╝╚══════╝╚══════╝╚═════╝
-       max score: 100, sides: 6
+100M6s
+Alice:Blair
 
-round 0: P1: 0, P2: 0
-P1 rolls: 35
+26d+84
+27d+89
+3d+11
+3d+10
+1d+5
+1d+1
+s
+s
 
-round 1: P2: 0, P1: 99
-P2 rolls: 35
-
-round 2: P1: 99, P2: 94
-P1 rolls: 0
-
-round 3: P2: 94, P1: 99 [FINAL]
-P2 rolls: 1
-
-=========================================
-             final results
-=========================================
-P1: 99, P2: 99
-P1 and P2 tie!
+100:100
 ```
 
 ### Solving
@@ -69,9 +57,10 @@ cargo run --release -- --max=100 --sides=6 --format=stdout
 ```sh
 cd visualize
 # generates svg files from the csv file:
-# - `payoffs.svg`
-# - `rolls.svg`
-julia visualize.jl ../results/greed_100_6.csv
+# - optimal_values.svg
+# - optimal_policy.svg
+julia --project=. -e "import Pkg; Pkg.instantiate()"
+julia --project=. visualize.jl ../results/greed_100_6.csv
 ```
 
 
