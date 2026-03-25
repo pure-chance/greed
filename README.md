@@ -57,15 +57,15 @@ cargo run --release -- --max=100 --sides=6 --format=stdout
 ```sh
 cd visualize
 # generates svg files from the csv file:
-# - optimal_values.svg
 # - optimal_policy.svg
+# - optimal_values.svg
 julia --project=. -e "import Pkg; Pkg.instantiate()"
 julia --project=. visualize.jl ../results/greed_100_6.csv
 ```
 
 
-![Payoffs](paper/assets/payoffs.svg)
-![Rolls](paper/assets/rolls.svg)
+![Payoffs](paper/assets/optimal_payoffs.svg)
+![Policy](paper/assets/optimal_policy.svg)
 
 
 ## Key Findings

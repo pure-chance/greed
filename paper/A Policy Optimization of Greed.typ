@@ -220,7 +220,7 @@ With the theoretical framework established, we implemented the dynamic programmi
 The following visualizations present the computed optimal policies and their associated payoffs for both terminal and normal game states. These visualizations provide many insights into the strategic principles of Greed and what those principles say about the game itself.
 
 #let payoffs = figure(
-  image("assets/optimal_values.svg", width: 100%),
+  image("assets/optimal_payoffs.svg", width: 100%),
   alt: "Plot of the optimal values (payoffs) for Greed.",
   caption: [*Optimal payoffs for each state given the standard ruleset of $M = 100, s = 6$.* In terminal states, there is a logarithmic curve which marks where the odds are equal. For normal states, there are distinct bands spaced $s$ apart in which the payoffs are more in favor of the player who is ahead. There is also the _inverse icicles_, which are the little bands near $(M, M)$ where the advantage switches to the player who is behind.],
 )
