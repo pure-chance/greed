@@ -14,7 +14,7 @@ function visualize(file_path::String, plot::Symbol=:payoff)::Figure
 
     type = (plot == :payoff) ? "Payoffs" : "Dice Counts"
 
-    fig = Figure(size=(900, 500), fontsize=14, backgroundcolor=:transparent)
+    fig = Figure(size=(900, 500), fontsize=14)
     ax1 = Axis(
         fig[1, 1],
         title="$type for Normal States",
