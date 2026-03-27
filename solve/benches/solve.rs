@@ -1,4 +1,4 @@
-use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use greed_solve::Solver;
 
 fn all_states(c: &mut Criterion) {
@@ -13,7 +13,7 @@ fn all_states(c: &mut Criterion) {
             &ruleset,
             |b, &ruleset| {
                 b.iter(|| {
-                    let mut solver = Solver::new(black_box(ruleset.0), black_box(ruleset.1));
+                    let mut solver = Solver::new(ruleset.0, ruleset.1);
                     solver.solve();
                 });
             },

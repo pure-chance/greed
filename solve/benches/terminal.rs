@@ -1,4 +1,4 @@
-use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use greed_solve::{Solver, State};
 
 fn terminal_states(c: &mut Criterion) {
@@ -28,9 +28,7 @@ fn terminal_states(c: &mut Criterion) {
             ),
             &ruleset,
             |b, _| {
-                b.iter(|| {
-                    solver.find_optimal_terminal_action(black_box(State::new(10, 10, false)))
-                });
+                b.iter(|| solver.find_optimal_terminal_action(State::new(10, 10, false)));
             },
         );
 
@@ -40,10 +38,7 @@ fn terminal_states(c: &mut Criterion) {
             &ruleset,
             |b, _| {
                 b.iter(|| {
-                    solver.calc_terminal_payoff(
-                        black_box(State::new(ruleset.0 / 2, ruleset.1 / 2, false)),
-                        3,
-                    )
+                    solver.calc_terminal_payoff(State::new(ruleset.0 / 2, ruleset.1 / 2, false), 3)
                 });
             },
         );
