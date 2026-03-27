@@ -1,7 +1,6 @@
 // preamble ====================================================================
 
-#import "template/lib.typ": paper, theoretic
-#import theoretic: *
+#import "template/paper.typ": *
 
 #show: paper.with(
   title: [A Policy Optimization of Greed],

@@ -4,11 +4,13 @@ version = "0.1.0"
 authors = ["Chance Addis <chance.h.addis@proton.me>"]
 
 [deps]
+ArgParse = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 
 [compat]
+ArgParse = "1.2.0"
 CSV = "0.10.15"
 CairoMakie = "0.15.6"
 DataFrames = "1.8.1"

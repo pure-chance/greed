@@ -1,5 +1,9 @@
 #import "style.typ": stylize
 
+// imported packages --
+#import "packages/theoretic.typ": *
+#import "packages/zebraw.typ": *
+
 // template --
 #let paper(
   title: [],
@@ -12,7 +16,6 @@
   set document(
     title: title,
     author: authors.join(", "),
-    date: datetime(year: 2025, month: 05, day: 30),
     description: abstract,
   )
 
