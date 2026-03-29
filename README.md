@@ -18,33 +18,9 @@ Play continues back and forth until one player decides to roll 0 dice, signaling
 
 ## Usage
 
-### Playing
-
-```sh
-cd play
-cargo run --release -- --max=100 --sides=6
-```
-
-```
-100M6s
-Alice:Blair
-
-26d+84
-27d+89
-3d+11
-3d+10
-1d+5
-1d+1
-s
-s
-
-100:100
-```
-
 ### Solving
 
 ```sh
-cd solve
 # generates csv file `greed_[max]_[sides].csv`
 cargo run --release -- --max=100 --sides=6 --format=csv
 # generates a (mostly) human readable report
@@ -56,15 +32,15 @@ cargo run --release -- --max=100 --sides=6 --format=stdout
 ```sh
 cd visualize
 # generates svg files from the csv file:
-# - optimal_policy.svg
-# - optimal_values.svg
+# - optimal_policy_[max]_[sides].svg
+# - optimal_values_[max]_[sides].svg
 julia --project=. -e "import Pkg; Pkg.instantiate()"
 julia --project=. visualize.jl ../results/greed_100_6.csv
 ```
 
 
-![Payoffs](paper/assets/optimal_payoffs.svg)
-![Policy](paper/assets/optimal_policy.svg)
+![Payoffs](paper/assets/optimal_payoffs_100_6.svg)
+![Policy](paper/assets/optimal_policy_100_6.svg)
 
 
 ## Key Findings
