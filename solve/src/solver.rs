@@ -33,8 +33,8 @@ use crate::pmf::PMFLookup;
 /// # Example
 ///
 /// ```rust
-/// use greed::dp::DpSolver;
-/// let mut solver = DpSolver::new(100, 6);
+/// use greed_solve::Solver;
+/// let mut solver = Solver::new(100, 6);
 /// solver.solve();
 /// ```
 #[derive(Debug, Clone, Default)]

@@ -134,6 +134,6 @@ mod tests {
         let pmf = PMFLookup::precompute(10, 6);
         assert_eq!(pmf[(0, 0)], 1.0);
         assert_eq!(pmf[(1, 1)], 1.0 / 6.0);
-        assert_eq!(pmf[(2, 1)], 1.0 / 36.0);
+        assert_eq!(pmf[(2, 2)], 1.0 / 36.0);
     }
 }
