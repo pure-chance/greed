@@ -129,11 +129,72 @@ impl IndexMut<(u32, u32)> for PMFLookup {
 mod tests {
     use super::*;
 
+    macro_rules! assert_approx_eq {
+        ($a:expr, $b:expr) => {
+            assert_approx_eq!($a, $b, 1e-12);
+        };
+        ($a:expr, $b:expr, $tol:expr) => {{
+            let left = $a;
+            let right = $b;
+            let tol = $tol;
+            let diff = (left - right).abs();
+            assert!(
+                diff <= tol,
+                "assertion failed: values are not approximately equal\n  left: {left}\n right: {right}\n  diff: {diff}\n   tol: {tol}"
+            );
+        }};
+    }
     #[test]
-    fn correct_pmfs() {
-        let pmf = PMFLookup::precompute(10, 6);
+    fn pmf_zero_die() {
+        let pmf = PMFLookup::precompute(0, 0);
         assert_eq!(pmf[(0, 0)], 1.0);
-        assert_eq!(pmf[(1, 1)], 1.0 / 6.0);
-        assert_eq!(pmf[(2, 2)], 1.0 / 36.0);
+    }
+
+    #[test]
+    fn pmf_one_die() {
+        let pmf = PMFLookup::precompute(1, 6);
+        assert_approx_eq!(pmf[(1, 1)], 1.0 / 6.0);
+        assert_approx_eq!(pmf[(1, 2)], 1.0 / 6.0);
+        assert_approx_eq!(pmf[(1, 3)], 1.0 / 6.0);
+        assert_approx_eq!(pmf[(1, 4)], 1.0 / 6.0);
+        assert_approx_eq!(pmf[(1, 5)], 1.0 / 6.0);
+        assert_approx_eq!(pmf[(1, 6)], 1.0 / 6.0);
+    }
+
+    #[test]
+    fn pmf_two_die() {
+        let pmf = PMFLookup::precompute(2, 6);
+        assert_approx_eq!(pmf[(2, 2)], 1.0 / 36.0);
+        assert_approx_eq!(pmf[(2, 3)], 2.0 / 36.0);
+        assert_approx_eq!(pmf[(2, 4)], 3.0 / 36.0);
+        assert_approx_eq!(pmf[(2, 5)], 4.0 / 36.0);
+        assert_approx_eq!(pmf[(2, 6)], 5.0 / 36.0);
+        assert_approx_eq!(pmf[(2, 7)], 6.0 / 36.0);
+        assert_approx_eq!(pmf[(2, 8)], 5.0 / 36.0);
+        assert_approx_eq!(pmf[(2, 9)], 4.0 / 36.0);
+        assert_approx_eq!(pmf[(2, 10)], 3.0 / 36.0);
+        assert_approx_eq!(pmf[(2, 11)], 2.0 / 36.0);
+        assert_approx_eq!(pmf[(2, 12)], 1.0 / 36.0);
+    }
+
+    #[test]
+    fn pmf_three_die() {
+        let pmf = PMFLookup::precompute(3, 6);
+        assert_approx_eq!(pmf[(3, 3)], 1.0 / 216.0);
+        assert_approx_eq!(pmf[(3, 4)], 3.0 / 216.0);
+        assert_approx_eq!(pmf[(3, 5)], 6.0 / 216.0);
+        assert_approx_eq!(pmf[(3, 6)], 10.0 / 216.0);
+        assert_approx_eq!(pmf[(3, 7)], 15.0 / 216.0);
+        assert_approx_eq!(pmf[(3, 8)], 21.0 / 216.0);
+        assert_approx_eq!(pmf[(3, 9)], 25.0 / 216.0);
+        assert_approx_eq!(pmf[(3, 10)], 27.0 / 216.0);
+        assert_approx_eq!(pmf[(3, 11)], 27.0 / 216.0);
+        assert_approx_eq!(pmf[(3, 12)], 25.0 / 216.0);
+        assert_approx_eq!(pmf[(3, 13)], 21.0 / 216.0);
+        assert_approx_eq!(pmf[(3, 14)], 15.0 / 216.0);
+        assert_approx_eq!(pmf[(3, 15)], 10.0 / 216.0);
+        assert_approx_eq!(pmf[(3, 16)], 6.0 / 216.0);
+        assert_approx_eq!(pmf[(3, 17)], 3.0 / 216.0);
+        assert_approx_eq!(pmf[(3, 18)], 1.0 / 216.0);
     }
 }
