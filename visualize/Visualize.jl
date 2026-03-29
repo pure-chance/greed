@@ -1,7 +1,6 @@
 using CairoMakie
 using CSV
 using DataFrames
-using Statistics
 
 function visualize(file_path::String, plot::Symbol=:payoff)::Figure
     @assert (plot in [:payoff, :n])
@@ -45,12 +44,21 @@ end
 
 if @isdefined(ARGS) && length(ARGS) > 0
     file_path = ARGS[1]
+    if !endswith(file_path, ".csv")
+        print("Error: Expected a CSV file, found $(file_path).\n")
+        exit(1)
+    end
+
+    # The filepaths are greed_[max]_[sides].csv, so we extract [max]_[sides] by
+    # slicing [7:end-4] (length("greed_") = 5, length(".csv") = 4), then
+    # seperate [max] and [sides] by "_".
+    max, sides = parse.(Int, split(basename(file_path)[7:end-4], "_"))
 
     fig_payoffs = visualize(file_path, :payoff)
     fig_rolls = visualize(file_path, :n)
 
-    save("optimal_payoffs.svg", fig_payoffs)
-    save("optimal_policy.svg", fig_rolls)
+    save("optimal_payoffs_$(max)_$(sides).svg", fig_payoffs)
+    save("optimal_policy_$(max)_$(sides).svg", fig_rolls)
 else
     print("Usage: julia visualize.jl <csv_path>\n")
     exit(1)
