@@ -14,14 +14,14 @@
 
 // document ====================================================================
 
-= Introduction <ch:intro>
+= Introduction
 Games of chance and choice have long fascinated both players and theorists. From the strategic depth of poker to the probabilistic tension of blackjack, such games offer fertile ground for mathematical and algorithmic analysis. In this work, we turn our attention to Greed—a deceptively simple dice game with rich strategic structure.
 
 Greed blends elements of push-your-luck decision-making and competitive scoring. At every step, players must weigh their chances, choosing how much they are willing to risk a bust, or worse, being overtaken in the last round.
 
 In this paper, we formalize Greed as a Markov Decision Process (MDP) and compute its optimal policy (strategy) using dynamic programming. We begin by precisely stating the rules of the game, then model it as an MDP by defining its states, actions, and transitions. Next, we develop an efficient function for computing the probability mass function (PMF) of dice sums, a core component of the game. With this foundation, we compute the optimal policy and introduce performance optimizations to handle the game’s large state space. Finally, we analyze the resulting strategy and discuss implications and extensions.
 
-= Rules <ch:rules>
+= Rules
 In order to play Greed, first the players must agree on a ruleset.
 
 #definition(title: "Ruleset")[
@@ -102,7 +102,7 @@ Notice that many possible invalid states exist but have probability $0.0$ either
 
 A game of greed is defined by its transition function $f: S times A -> [0, 1]$. This is a result of the nature of greed as a Markov Decision Process (MDP), which is also defined by the transition function. Because Greed is a MDP, it inherits all the properties of an MDP, including its memoryless property, and therefore its ability to be solved via dynamic programming, which we'll prove and apply in @ch:policy.
 
-= PMF <ch:pmf>
+= PMF
 Computing the probability mass function (pmf) of dice sums is essential for modeling Greed, as the game’s scoring depends on the distribution of outcomes from rolling multiple dice. Specifically, we require the pmf of the sum of $n$ independent and identically distributed (i.i.d.) discrete uniform random variables on the set ${1, 2, ..., s}$---that is, the total when rolling $n$ fair $s$-sided dice. A closed-form expression for this distribution is known @analyticscheck2020dice:
 
 #theorem(title: "PMF of dice sum")[
@@ -111,7 +111,7 @@ Computing the probability mass function (pmf) of dice sums is essential for mode
   $
 ]
 
-This formula is exact, but computationally expensive for large $n$ and $s$ due to the growth of binomial coefficients. In practice, we use the Fast Fourier Transform (FFT) to compute the pmf more efficiently via convolution.
+This formula is exact, but computationally expensive for large $n$ and $s$ due to the growth of binomial coefficients. In practice, we use convolution to compute the pmf more efficiently.
 
 For a single die: $
   bold(p)(t | 1, s) = cases(
@@ -120,7 +120,7 @@ For a single die: $
   )
 $
 
-For $n > 1$ dice, we compute recursively via convolution: $
+For $n > 1$ dice, we compute recursively: $
   bold(p)(t | n, s) = sum_(k=1)^s bold(p)(t - k | n - 1, s) dot bold(p)(k | 1, s).
 $
 
@@ -128,7 +128,7 @@ $
 It's worth expanding on the concept of a payoff. In the rules, the payoff function occurs only at the conclusion of the game. We generalize the payoff function to include intermediate states, allowing us to optimize the expected payoff at each step.
 
 #remark[
-  Importantly, the payoff is not a probability---it does not sum to 1 (it sums to 0, as this is a zero-sum game).
+  Importantly, the payoff is not a probability; it does not sum to 1. (It sums to 0, as this is a zero-sum game.)
 ]
 
 #definition(title: "Payoff")[
@@ -163,9 +163,7 @@ To find this optimal policy, we use *minimax via dynamic programming*. This appr
 Practically, this means we memoize the results of previously computed states to avoid redundant calculations. On an implementation level, instead we simply evaluate states in reverse order, using the structure of the game to build up the full value and policy functions.
 
 == Terminal States
-For terminal states, the problem is simple: find some $n$ that maximizes the probability that your sum $t$ will yield $a + t in [q, M]$. More precisely, for a game state $(a, q, T)$ we optimize the expected payoff
-
-$
+For terminal states, the problem is simple: find some $n$ that maximizes the probability that your sum $t$ will yield $a + t in [q, M]$. More precisely, for a game state $(a, q, T)$ we optimize the expected payoff $
   n_star := max_(n in [0, oo)) sum_(t = n)^(s n) cases(
     1 &"if" q < a + t <= M,
     0 &"if" a + t = q,
@@ -261,7 +259,7 @@ First considering the bands, this again demonstrates the behavior between the si
 
 Secondly, the behavior near the max. The most striking patterns are the two "spikes" where despite being ahead, the opposite player has a better chance of winning. It is likely that these spikes exist because in those states, you can't stand, as the opponent could easily win by rolling $1$ die, so you most roll once and then stand on the next turn. But if you roll, the opponent has $2$ chances to roll against your $1$.
 
-= Conclusion <ch:conclusion>
+= Conclusion
 Our analysis revealed that Greed is fundamentally a game of careful endgame positioning---while mid-game states tend to be balanced, securing even a small advantage can be decisive if leveraged to end the game immediately. The visualizations of optimal policies highlighted interesting strategic patterns, including the critical square-root boundary between winning and losing terminal positions. These insights not only deepen our theoretical understanding of Greed but also provide practical guidance for optimal play.
 
 Future work could explore extensions to multiplayer variants or investigate the impact of different scoring rules on optimal strategies. There is also, I suspect, more room for performance improvements. However, the current improvements are enough for the goals of this project.

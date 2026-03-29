@@ -6,12 +6,12 @@
   set page(
     columns: 2,
     paper: "a4",
-    margin: (x: 12.5mm, y: 12.5mm)
+    margin: (x: 12.5mm, y: 12.5mm),
   )
   set columns(gutter: 6mm)
 
   // Configure text properties --
-  set text(font: "Libertinus Sans", size: 10pt, weight: "regular")
+  set text(font: "Libertinus Serif", size: 9.5pt, weight: "regular")
   show raw: set text(font: "Maple Mono NF")
 
   // Configure paragraph properties --
@@ -19,36 +19,38 @@
     first-line-indent: 1em,
     justify: true,
     spacing: 0.5em,
-    leading: 0.5em
+    leading: 0.5em,
   )
 
   // Configure heading properties --
-  set heading(numbering: "1.1.")
-  show heading: set text(font: "Libertinus Sans", size: 12pt)
+  set heading(numbering: "1.1")
+  show heading: set text(size: 10pt)
   show heading.where(level: 1): it => {
     set block(above: 1.6em, below: 0.8em)
     it
   }
+
+  // headings with level > 2 are inlined
   show heading: it => {
     if 1 < it.level {
       // inline heading
-      set text(size: 10pt)
-      let heading = counter(heading).display(it.numbering) + h(0.2em) + it.body
+      set text(size: 9.5pt)
+      let heading = counter(heading).display(auto) + h(0.25em) + it.body
       block(below: 0pt) + heading + [.]
     } else { it }
   }
 
   show heading.where(level: 1): set text(
     style: "normal",
-    weight: "bold"
+    weight: "bold",
   )
   show heading.where(level: 2): set text(
     style: "normal",
-    weight: "bold"
+    weight: "bold",
   )
   show heading.where(level: 3): set text(
     style: "italic",
-    weight: "regular"
+    weight: "regular",
   )
 
   // figures & captions --
@@ -56,7 +58,7 @@
   show figure.caption: set align(left)
   show figure.where(kind: table): set figure(supplement: [Table])
   show figure.where(kind: raw): set figure(supplement: [Code])
-  set figure(supplement: [Fig.])
+  set figure(supplement: [Figure])
   set figure.caption(separator: [|])
   show figure.caption: it => [
     #strong[
@@ -72,7 +74,7 @@
   set table(
     stroke: (x, y) => if y == 0 {
       (bottom: 0.7pt + black)
-    }
+    },
   )
   show table: set align(center)
 

@@ -32,8 +32,8 @@
 
 // #let spacing-options = (
 //   block-args: (
-//     above: 1.2em,
-//     below: 1.2em,
+//     above: 1em,
+//     below: 1em,
 //   )
 // )
 
