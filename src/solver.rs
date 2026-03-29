@@ -81,7 +81,8 @@ impl Solver {
 
     /// Returns the computed policy.
     ///
-    /// The policy is only correct (and non-empty) after the `solve` method is called.
+    /// The policy is only correct (and non-empty) after the `solve` method is
+    /// called.
     #[must_use]
     pub const fn policy(&self) -> &Policy {
         &self.policy
