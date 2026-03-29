@@ -36,15 +36,6 @@ fn main() {
                 .default_value("6"),
         )
         .arg(
-            Arg::new("method")
-                .short('M')
-                .long("method")
-                .value_name("METHOD")
-                .help("Solver method")
-                .value_parser(["dp", "rl"])
-                .default_value("dp"),
-        )
-        .arg(
             Arg::new("format")
                 .short('f')
                 .long("format")
