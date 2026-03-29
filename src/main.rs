@@ -1,4 +1,4 @@
-//! # Greed—Optimal Policy Solver
+//! # A Policy Optimization of Greed
 //!
 //! The Command Line Interface (CLI) for the Greed game solver.
 //!
@@ -12,11 +12,11 @@
 //! ```
 
 use clap::{Arg, Command};
-use greed_solve::Solver;
+use greed::Solver;
 
 fn main() {
     let cli = Command::new("solve")
-        .about("An optimizer for the game of Greed")
+        .about("A policy optimizer for the game of Greed")
         .arg(
             Arg::new("max")
                 .short('m')

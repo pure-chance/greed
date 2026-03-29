@@ -1,5 +1,5 @@
-use criterion::{Criterion, criterion_group, criterion_main};
-use greed_solve::PMFLookup;
+use criterion::{criterion_group, criterion_main, Criterion};
+use greed::PMFLookup;
 
 fn pmf_benchmarks(c: &mut Criterion) {
     let mut group = c.benchmark_group("pmf");

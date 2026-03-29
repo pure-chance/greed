@@ -1,4 +1,4 @@
-# Greed—Optimal Policy Solver
+# A Policy Optimization of Greed
 
 ## Background
 
@@ -12,8 +12,7 @@ Play continues back and forth until one player decides to roll 0 dice, signaling
 
 ## Project Structure
 
-- `/play`: Interactive Greed TUI game. 
-- `/solve`: Optimal Policy Solver.
+- `/solve`: Compute the optimal policy.
 - `/visualize`: Create visualizations from the optimal policy CSV data.
 - `/paper`: Document the mathematical theory and implementation of this problem.
 

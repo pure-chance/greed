@@ -1,4 +1,4 @@
-//! # Greed—Optimal Policy Solver
+//! # A Policy Optimization of Greed
 //!
 //! Greed is a dice-based two-player game where players try to get as close to
 //! the maximum score as possible without going bust. The player whose score is
@@ -19,7 +19,7 @@
 //! ## Quick Start
 //!
 //! ```rust
-//! use greed_solve::Solver;
+//! use greed::Solver;
 //!
 //! let mut solver = Solver::new(20, 4);
 //! solver.solve();

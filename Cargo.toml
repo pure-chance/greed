@@ -1,6 +1,6 @@
 [package]
-name = "greed-solve"
-description = "An optimizer for the game of Greed"
+name = "greed"
+description = "A policy optimizer for the game of Greed."
 version = "0.1.0"
 edition = "2024"
 readme = "README.md"

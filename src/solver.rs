@@ -1,4 +1,4 @@
-//! Solver for Greed.
+//! A policy optimizer for the game of Greed.
 //!
 //! The solver computes the optimal policy for a game of Greed with some ruleset
 //! `(M, s)`.
@@ -33,7 +33,7 @@ use crate::pmf::PMFLookup;
 /// # Example
 ///
 /// ```rust
-/// use greed_solve::Solver;
+/// use greed::Solver;
 /// let mut solver = Solver::new(100, 6);
 /// solver.solve();
 /// ```
