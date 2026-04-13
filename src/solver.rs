@@ -163,6 +163,7 @@ impl Solver {
             ..=2 * (self.max() - state.active() + self.sides()) / (self.sides() + 1).max(1);
 
         range
+            .rev() // prefer conservative rolls
             .map(|dice_rolled| (dice_rolled, self.calc_terminal_payoff(state, dice_rolled)))
             .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
             .map(|(dice_rolled, payoff)| Action::new(dice_rolled, payoff))
@@ -296,70 +297,219 @@ impl Solver {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pretty_assertions::assert_eq;
 
-    #[test]
-    fn test_solver_vs_known_optimal_strategies() {
-        // Test solver against known optimal strategies for simple cases
-        let mut solver = Solver::new(10, 2);
-        solver.solve();
-
-        // At max score, should never roll
-        let max_state = State::new(10, 5, false);
-        let action = solver.policy[max_state];
-        assert_eq!(action.n(), 0, "At max score, should never roll");
-
-        // When opponent is at max and we're behind, must roll
-        let must_roll_state = State::new(8, 10, true);
-        let action = solver.policy[must_roll_state];
-        assert!(action.n() > 0, "Must roll when behind in terminal state");
+    fn make_policy(entries: &[(State, Action)], max: u32) -> Policy {
+        let mut policy = Policy::new(max);
+        for &(state, action) in entries {
+            policy[state] = action;
+        }
+        policy
     }
 
     #[test]
-    fn test_game_symmetry() {
-        // Test that the game exhibits expected symmetry properties
-        let mut solver = Solver::new(15, 3);
+    fn test_bellman_optimality() {
+        const EPSILON: f64 = 1e-12;
+
+        let mut solver = Solver::new(100, 6);
         solver.solve();
 
-        // Test symmetry in normal states
-        let state1 = State::new(8, 6, false);
-        let state2 = State::new(6, 8, false);
+        for (state, action) in solver.policy().iter() {
+            // Maximum possible optimal action.
+            let n_max = 2 * (solver.max() - state.active() + solver.sides()) / (solver.sides() + 1);
+            let stored_payoff = action.payoff();
 
-        let action1 = solver.policy[state1];
-        let action2 = solver.policy[state2];
+            for n in 0..=n_max {
+                let computed = if state.last() {
+                    solver.calc_terminal_payoff(state, n)
+                } else {
+                    solver.calc_normal_payoff(state, n)
+                };
 
-        // While not perfectly symmetric due to turn order, payoffs should be roughly
-        // opposite
-        assert!(
-            (action1.payoff() + action2.payoff()).abs() < 0.5,
-            "Symmetric states should have roughly opposite payoffs"
-        );
-    }
-
-    #[test]
-    fn test_end_game_behavior() {
-        let mut solver = Solver::new(30, 6);
-        solver.solve();
-
-        // Test behavior near end game
-        let close_states = vec![
-            State::new(25, 28, false), // Behind but close
-            State::new(28, 25, false), // Ahead but close
-            State::new(29, 29, false), // Tied near max
-            State::new(30, 25, false), // At max, ahead
-        ];
-
-        for state in close_states {
-            let action = solver.policy[state];
-
-            // All actions should be valid
-            assert!(action.n() <= 20, "End game actions should be reasonable");
-            assert!(action.payoff() >= -1.0 - 1e-10, "payoffs should be valid");
-            assert!(action.payoff() <= 1.0 + 1e-10, "payoffs should be valid");
-
-            // At max score, should never roll
-            if state.active() == 30 {
-                assert_eq!(action.n(), 0, "At max score, should never roll");
+                assert!(
+                    computed <= stored_payoff + EPSILON,
+                    "Bellman violation at {state:?}: \
+                     action n={n} yields payoff {computed:.10} \
+                     which exceeds stored optimum {stored_payoff:.10} \
+                     (diff: {:.2e})",
+                    computed - stored_payoff,
+                );
             }
         }
+    }
+
+    #[test]
+    fn test_1_2_policy() {
+        let mut solver = Solver::new(1, 2);
+        solver.solve();
+
+        let expected = make_policy(
+            &[
+                // terminal states
+                (State::new(0, 0, true), Action::new(0, 0.0)),
+                (State::new(0, 1, true), Action::new(1, -0.5)),
+                (State::new(1, 0, true), Action::new(0, 1.0)),
+                (State::new(1, 1, true), Action::new(0, 0.0)),
+                // normal states
+                (State::new(0, 0, false), Action::new(0, 0.0)),
+                (State::new(0, 1, false), Action::new(1, -0.5)),
+                (State::new(1, 0, false), Action::new(0, 0.5)),
+                (State::new(1, 1, false), Action::new(0, 0.0)),
+            ],
+            1,
+        );
+
+        assert_eq!(solver.policy(), &expected);
+    }
+
+    #[test]
+    fn test_2_2_policy() {
+        let mut solver = Solver::new(2, 2);
+        solver.solve();
+
+        let expected = make_policy(
+            &[
+                // terminal states
+                (State::new(0, 0, true), Action::new(1, 1.0)),
+                (State::new(0, 1, true), Action::new(1, 0.5)),
+                (State::new(0, 2, true), Action::new(1, -0.5)),
+                (State::new(1, 0, true), Action::new(0, 1.0)),
+                (State::new(1, 1, true), Action::new(0, 0.0)),
+                (State::new(1, 2, true), Action::new(1, -0.5)),
+                (State::new(2, 0, true), Action::new(0, 1.0)),
+                (State::new(2, 1, true), Action::new(0, 1.0)),
+                (State::new(2, 2, true), Action::new(0, 0.0)),
+                // normal states
+                (State::new(0, 0, false), Action::new(1, 0.0)),
+                (State::new(0, 1, false), Action::new(1, 0.25)),
+                (State::new(0, 2, false), Action::new(1, -0.25)),
+                (State::new(1, 0, false), Action::new(1, -0.375)),
+                (State::new(1, 1, false), Action::new(0, 0.0)),
+                (State::new(1, 2, false), Action::new(1, -0.5)),
+                (State::new(2, 0, false), Action::new(0, 0.5)),
+                (State::new(2, 1, false), Action::new(0, 0.5)),
+                (State::new(2, 2, false), Action::new(0, 0.0)),
+            ],
+            2,
+        );
+
+        assert_eq!(solver.policy(), &expected);
+    }
+
+    #[test]
+    fn test_3_2_policy() {
+        let mut solver = Solver::new(3, 2);
+        solver.solve();
+
+        let expected = make_policy(
+            &[
+                // terminal states
+                (State::new(0, 0, true), Action::new(1, 1.0)),
+                (State::new(0, 1, true), Action::new(1, 0.5)),
+                (State::new(0, 2, true), Action::new(2, 0.25)),
+                (State::new(0, 3, true), Action::new(2, -0.5)),
+                (State::new(1, 0, true), Action::new(0, 1.0)),
+                (State::new(1, 1, true), Action::new(1, 1.0)),
+                (State::new(1, 2, true), Action::new(1, 0.5)),
+                (State::new(1, 3, true), Action::new(1, -0.5)),
+                (State::new(2, 0, true), Action::new(0, 1.0)),
+                (State::new(2, 1, true), Action::new(0, 1.0)),
+                (State::new(2, 2, true), Action::new(0, 0.0)),
+                (State::new(2, 3, true), Action::new(1, -0.5)),
+                (State::new(3, 0, true), Action::new(0, 1.0)),
+                (State::new(3, 1, true), Action::new(0, 1.0)),
+                (State::new(3, 2, true), Action::new(0, 1.0)),
+                (State::new(3, 3, true), Action::new(0, 0.0)),
+                // normal states
+                (State::new(0, 0, false), Action::new(1, -0.03125)),
+                (State::new(0, 1, false), Action::new(1, -0.125)),
+                (State::new(0, 2, false), Action::new(1, 0.1875)),
+                (State::new(0, 3, false), Action::new(2, -0.375)),
+                (State::new(1, 0, false), Action::new(1, 0.09375)),
+                (State::new(1, 1, false), Action::new(1, 0.0)),
+                (State::new(1, 2, false), Action::new(1, 0.25)),
+                (State::new(1, 3, false), Action::new(1, -0.25)),
+                (State::new(2, 0, false), Action::new(0, -0.25)),
+                (State::new(2, 1, false), Action::new(1, -0.375)),
+                (State::new(2, 2, false), Action::new(0, 0.0)),
+                (State::new(2, 3, false), Action::new(1, -0.5)),
+                (State::new(3, 0, false), Action::new(0, 0.5)),
+                (State::new(3, 1, false), Action::new(0, 0.5)),
+                (State::new(3, 2, false), Action::new(0, 0.5)),
+                (State::new(3, 3, false), Action::new(0, 0.0)),
+            ],
+            3,
+        );
+
+        assert_eq!(solver.policy(), &expected);
+    }
+
+    #[test]
+    fn test_4_2_policy() {
+        let mut solver = Solver::new(4, 2);
+        solver.solve();
+
+        let expected = make_policy(
+            &[
+                // terminal states
+                (State::new(0, 0, true), Action::new(1, 1.0)),
+                (State::new(0, 1, true), Action::new(2, 1.0)),
+                (State::new(0, 2, true), Action::new(2, 0.75)),
+                (State::new(0, 3, true), Action::new(2, 0.0)),
+                (State::new(0, 4, true), Action::new(3, -0.625)),
+                (State::new(1, 0, true), Action::new(0, 1.0)),
+                (State::new(1, 1, true), Action::new(1, 1.0)),
+                (State::new(1, 2, true), Action::new(1, 0.5)),
+                (State::new(1, 3, true), Action::new(2, 0.25)),
+                (State::new(1, 4, true), Action::new(2, -0.5)),
+                (State::new(2, 0, true), Action::new(0, 1.0)),
+                (State::new(2, 1, true), Action::new(0, 1.0)),
+                (State::new(2, 2, true), Action::new(1, 1.0)),
+                (State::new(2, 3, true), Action::new(1, 0.5)),
+                (State::new(2, 4, true), Action::new(1, -0.5)),
+                (State::new(3, 0, true), Action::new(0, 1.0)),
+                (State::new(3, 1, true), Action::new(0, 1.0)),
+                (State::new(3, 2, true), Action::new(0, 1.0)),
+                (State::new(3, 3, true), Action::new(0, 0.0)),
+                (State::new(3, 4, true), Action::new(1, -0.5)),
+                (State::new(3, 0, true), Action::new(0, 1.0)),
+                (State::new(3, 1, true), Action::new(0, 1.0)),
+                (State::new(3, 2, true), Action::new(0, 1.0)),
+                (State::new(4, 0, true), Action::new(0, 1.0)),
+                (State::new(4, 1, true), Action::new(0, 1.0)),
+                (State::new(4, 2, true), Action::new(0, 1.0)),
+                (State::new(4, 3, true), Action::new(0, 1.0)),
+                (State::new(4, 4, true), Action::new(0, 0.0)),
+                // normal states
+                (State::new(0, 0, false), Action::new(1, -0.015625)),
+                (State::new(0, 1, false), Action::new(1, 0.078125)),
+                (State::new(0, 2, false), Action::new(1, -0.046875)),
+                (State::new(0, 3, false), Action::new(1, 0.3125)),
+                (State::new(0, 4, false), Action::new(2, -0.375)),
+                (State::new(1, 0, false), Action::new(1, -0.1328125)),
+                (State::new(1, 1, false), Action::new(1, -0.03125)),
+                (State::new(1, 2, false), Action::new(1, -0.125)),
+                (State::new(1, 3, false), Action::new(1, 0.1875)),
+                (State::new(1, 4, false), Action::new(2, -0.375)),
+                (State::new(2, 0, false), Action::new(1, 0.03125)),
+                (State::new(2, 1, false), Action::new(1, 0.09375)),
+                (State::new(2, 2, false), Action::new(1, 0.0)),
+                (State::new(2, 3, false), Action::new(1, 0.25)),
+                (State::new(2, 4, false), Action::new(1, -0.25)),
+                (State::new(3, 0, false), Action::new(0, 0.0)),
+                (State::new(3, 1, false), Action::new(0, -0.25)),
+                (State::new(3, 2, false), Action::new(1, -0.375)),
+                (State::new(3, 3, false), Action::new(0, 0.0)),
+                (State::new(3, 4, false), Action::new(1, -0.5)),
+                (State::new(4, 0, false), Action::new(0, 0.625)),
+                (State::new(4, 1, false), Action::new(0, 0.5)),
+                (State::new(4, 2, false), Action::new(0, 0.5)),
+                (State::new(4, 3, false), Action::new(0, 0.5)),
+                (State::new(4, 4, false), Action::new(0, 0.0)),
+            ],
+            4,
+        );
+
+        assert_eq!(solver.policy(), &expected);
     }
 }

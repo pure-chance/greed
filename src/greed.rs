@@ -1,3 +1,4 @@
+use std::fmt;
 use std::ops::{Index, IndexMut};
 
 /// The ruleset for a game of Greed.
@@ -41,7 +42,7 @@ impl Ruleset {
 }
 
 /// A game state in Greed, viewed from the perspective of the active player.
-#[derive(Debug, Copy, Clone, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Copy, Clone, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct State {
     /// The score of the player whose turn it is.
     active: u32,
@@ -81,6 +82,18 @@ impl State {
     }
 }
 
+impl fmt::Debug for State {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "State({}, {}, {})",
+            self.active,
+            self.queued,
+            if self.last { "terminal" } else { "normal" }
+        )
+    }
+}
+
 /// An (optimal) action for a single game state.
 ///
 /// An action consists of a number of dice to roll (`n`) and a payoff
@@ -90,7 +103,7 @@ impl State {
 /// - `-1.0` = certain loss
 /// - `0.0` = balanced (or guaranteed tie).
 /// - `1.0` = certain victory
-#[derive(Debug, Copy, Clone, Default)]
+#[derive(Copy, Clone, Default)]
 pub struct Action {
     /// The number of dice to roll, with 0 meaning stand/pass.
     n: u32,
@@ -103,6 +116,7 @@ impl Action {
     /// payoff.
     #[must_use]
     pub const fn new(n: u32, payoff: f64) -> Self {
+        let payoff = if payoff == 0.0 { 0.0 } else { payoff };
         Self { n, payoff }
     }
 
@@ -119,6 +133,20 @@ impl Action {
     }
 }
 
+impl PartialEq for Action {
+    fn eq(&self, other: &Self) -> bool {
+        self.n == other.n && (self.payoff - other.payoff).abs() < 1e-12
+    }
+}
+
+impl Eq for Action {}
+
+impl fmt::Debug for Action {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Action(n: {}, payoff: {})", self.n, self.payoff)
+    }
+}
+
 /// A Greed policy.
 ///
 /// A *policy* is a mapping from game states to actions. An *optimal policy* is
@@ -132,7 +160,7 @@ impl Action {
 /// This keeps states that share the same `queued` and `last` values
 /// adjacent, which is friendly to the solver's inner loops (they iterate
 /// over possible `active` outcomes for a fixed opponent score).
-#[derive(Debug, Clone, Default)]
+#[derive(Clone, Default, PartialEq, Eq)]
 pub struct Policy {
     /// The optimal action for each state.
     policy: Box<[Action]>,
@@ -243,5 +271,20 @@ impl IndexMut<State> for Policy {
         let stride = self.max + 1;
         let index = s.active() + stride * s.queued() + stride * stride * u32::from(s.last());
         &mut self.policy[index as usize]
+    }
+}
+
+impl fmt::Debug for Policy {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut map = f.debug_map();
+        for active in 0..=self.max {
+            for queued in 0..=self.max {
+                for last in [false, true] {
+                    let state = State::new(active, queued, last);
+                    map.entry(&state, &self[state]);
+                }
+            }
+        }
+        map.finish()
     }
 }
