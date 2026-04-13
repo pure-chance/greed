@@ -22,7 +22,7 @@ impl Ruleset {
     /// Create a new ruleset with the given maximum score and die size.
     ///
     /// Both values should be non-zero. A `sides` of 0 will cause division
-    /// by zero in the solver; a `max` of 0 makes every roll a bust.
+    /// by zero in the optimizer; a `max` of 0 makes every roll a bust.
     #[must_use]
     pub const fn new(max: u32, sides: u32) -> Self {
         Self { max, sides }
@@ -158,7 +158,7 @@ impl fmt::Debug for Action {
 /// (max + 1) * queued + (max + 1)² * last`
 ///
 /// This keeps states that share the same `queued` and `last` values
-/// adjacent, which is friendly to the solver's inner loops (they iterate
+/// adjacent, which is friendly to the optimizer's inner loops (they iterate
 /// over possible `active` outcomes for a fixed opponent score).
 #[derive(Clone, Default, PartialEq, Eq)]
 pub struct Policy {

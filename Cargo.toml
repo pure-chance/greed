@@ -41,5 +41,5 @@ name = "normal"
 harness = false
 
 [[bench]]
-name = "solve"
+name = "optimize"
 harness = false

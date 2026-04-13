@@ -19,19 +19,19 @@
 //! ## Quick Start
 //!
 //! ```rust
-//! use greed::Solver;
+//! use greed::{PolicyOptimizer, Ruleset};
 //!
-//! let mut solver = Solver::new(20, 4);
-//! solver.solve();
+//! let ruleset = Ruleset::new(100, 6);
+//! let optimizer = PolicyOptimizer::optimize(ruleset);
 //!
-//! let policy = solver.policy();
+//! let policy = optimizer.policy();
 //! policy.stdout();
 //! ```
 
 mod greed;
+mod optimizer;
 mod pmf;
-mod solver;
 
 pub use greed::{Action, Policy, Ruleset, State};
+pub use optimizer::PolicyOptimizer;
 pub use pmf::PMFLookup;
-pub use solver::Solver;

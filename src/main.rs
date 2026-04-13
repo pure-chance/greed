@@ -1,6 +1,6 @@
 //! # A Policy Optimization of Greed
 //!
-//! The Command Line Interface (CLI) for the Greed game solver.
+//! The Command Line Interface (CLI) for the Greed game optimizer.
 //!
 //! ## Usage
 //!
@@ -12,10 +12,10 @@
 //! ```
 
 use clap::{Arg, Command};
-use greed::Solver;
+use greed::{PolicyOptimizer, Ruleset};
 
 fn main() {
-    let cli = Command::new("solve")
+    let cli = Command::new("optimize")
         .about("A policy optimizer for the game of Greed")
         .arg(
             Arg::new("max")
@@ -50,14 +50,13 @@ fn main() {
     let sides = *args.get_one::<u32>("sides").unwrap();
     let format = args.get_one::<String>("format").unwrap().as_str();
 
-    let mut solver = Solver::new(max, sides);
-    solver.solve();
-    let policy = solver.policy();
+    let optimizer = PolicyOptimizer::optimize(Ruleset::new(max, sides));
+    let policy = optimizer.policy();
 
     match format {
         "stdout" => policy.stdout(),
         "csv" => {
-            let csv_filename = format!("results/greed_{max}_{sides}.csv");
+            let csv_filename = format!("../results/greed_{max}_{sides}.csv");
             match policy.csv(&csv_filename) {
                 Ok(()) => println!("Policy exported to {csv_filename}"),
                 Err(e) => eprintln!("Failed to write CSV file: {e}"),

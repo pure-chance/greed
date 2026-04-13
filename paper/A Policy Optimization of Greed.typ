@@ -9,7 +9,7 @@
   abstract: [
     The game of Greed is a stochastic, zero-sum game that tests a player's risk-taking, similarly to blackjack. We analyze Greed through the lens of game theory and Markov Decision Processes (MDPs). This framework allows us to compute an optimal policy that maps each game state to the action that maximizes a player’s expected chance of winning. In addition to presenting the theoretical formulation, we explore efficient algorithms for computing this policy. By leveraging dynamic programming, state pruning, and compact policy representations, we substantially reduce computational overhead and enable fast, scalable analysis across large state spaces.
   ],
-  references: bibliography("references.yml", title: "References", full: true)
+  references: bibliography("references.yml", title: "References", full: true),
 )
 
 // document ====================================================================
@@ -26,8 +26,8 @@ In order to play Greed, first the players must agree on a ruleset.
 
 #definition(title: "Ruleset")[
   A _ruleset_ of Greed is a pair $(M, s)$ where:
-    - $M in NN^+$ is the _maximum score_, and
-    - $s in NN^+$ is the _number of sides per die_.
+  - $M in NN^+$ is the _maximum score_, and
+  - $s in NN^+$ is the _number of sides per die_.
 ]
 
 With the ruleset defined, the game can begin.
@@ -89,42 +89,34 @@ Lastly, we define a transition function, which models the probability of transit
 #definition(title: "Transition Function")[
   The _transition function_ for greed is defined as $f: S times A -> [0, 1]$, mapping a state $s in S$ and action $a in A$ to the probability of transitioning from one state to another, given $s, a$.
 
-  For states $s = (a, q, l)$ and $s' = (a', q', l')$ in $S$, and action $a in A$, the transition probability $f(s, s', a)$ is $
-     cases(
-       1.0 &"if" s' = (q, a, "T") and a = 0,
-       bold(p)_n (a' - a) &"if " s' = (q, a', l) and a >= 0,
-       0.0 &"otherwise",
-     )
-  $ where $bold(p)_n (k)$ denotes the probability that the sum of $n$ dice equals $k$.
+  For states $s = (a, q, l)$ and $s' = (a', q', l')$ in $S$, and action $a in A$, the transition probability $f(s, s', a)$ is $ cases(
+    1.0 & "if" s' = (q, a, "T") and a = 0,
+    bold(p)_n (a' - a) & "if " s' = (q, a', l) and a >= 0,
+    0.0 & "otherwise",
+  ) $ where $bold(p)_n (k)$ denotes the probability that the sum of $n$ dice equals $k$.
 ]
 
 Notice that many possible invalid states exist but have probability $0.0$ either because $bold(p)_n = 0.0$ (e.g., because $k < 0$), or because the transition violates some other rule like $l = "T", l' = "F"$ or $a' != q$.
 
-A game of greed is defined by its transition function $f: S times A -> [0, 1]$. This is a result of the nature of greed as a Markov Decision Process (MDP), which is also defined by the transition function. Because Greed is a MDP, it inherits all the properties of an MDP, including its memoryless property, and therefore its ability to be solved via dynamic programming, which we'll prove and apply in @ch:policy.
+A game of greed is defined by its transition function $f: S times A -> [0, 1]$. This is a result of the nature of greed as a Markov Decision Process (MDP), which is also defined by the transition function. Because Greed is a MDP, it inherits all the properties of an MDP, including its memoryless property, and therefore its ability to be optimized via dynamic programming, which we'll prove and apply in @ch:policy.
 
 = PMF
 Computing the probability mass function (pmf) of dice sums is essential for modeling Greed, as the game’s scoring depends on the distribution of outcomes from rolling multiple dice. Specifically, we require the pmf of the sum of $n$ independent and identically distributed (i.i.d.) discrete uniform random variables on the set ${1, 2, ..., s}$---that is, the total when rolling $n$ fair $s$-sided dice. A closed-form expression for this distribution is known @analyticscheck2020dice:
 
 #theorem(title: "PMF of dice sum")[
-  Let $bold(p)(t | n, s)$ denote the probability that the sum of $n$ i.i.d. discrete uniform random variables on the set ${1, 2, ..., s}$ equals $t$. Then: $
-    bold(p)(t | n, s) = 1 / s^n sum_(k = 0)^(floor((t-n) / s)) (-1)^k binom(n, k) binom(t - s k - 1, n - 1)
-  $
+  Let $bold(p)(t | n, s)$ denote the probability that the sum of $n$ i.i.d. discrete uniform random variables on the set ${1, 2, ..., s}$ equals $t$. Then: $ bold(p)(t | n, s) = 1 / s^n sum_(k = 0)^(floor((t-n) / s)) (-1)^k binom(n, k) binom(t - s k - 1, n - 1) $
 ]
 
 This formula is exact, but computationally expensive for large $n$ and $s$ due to the growth of binomial coefficients. In practice, we use convolution to compute the pmf more efficiently.
 
-For a single die: $
-  bold(p)(t | 1, s) = cases(
-    1/s &"if" 1 <= t <= s,
-    0 &"otherwise"
-  )
-$
+For a single die: $ bold(p)(t | 1, s) = cases(
+  1/s & "if" 1 <= t <= s,
+  0 & "otherwise"
+) $
 
-For $n > 1$ dice, we compute recursively: $
-  bold(p)(t | n, s) = sum_(k=1)^s bold(p)(t - k | n - 1, s) dot bold(p)(k | 1, s).
-$
+For $n > 1$ dice, we compute recursively: $ bold(p)(t | n, s) = sum_(k=1)^s bold(p)(t - k | n - 1, s) dot bold(p)(k | 1, s). $
 
-= Policy Solver <ch:policy>
+= Policy optimizer <ch:policy>
 It's worth expanding on the concept of a payoff. In the rules, the payoff function occurs only at the conclusion of the game. We generalize the payoff function to include intermediate states, allowing us to optimize the expected payoff at each step.
 
 #remark[
@@ -153,9 +145,7 @@ To optimize Greed, we must consider not only the value of a state but also the v
 ]
 
 #definition(title: "Optimal Policy")[
-  The _optimal policy_ $pi_star$  is one that maximizes the expected payoff for the active player. Formally, for all states $s in S$, $
-    pi_(star)(s) := "arg" max_(a in A) Q_(pi_star)(s, a)
-  $
+  The _optimal policy_ $pi_star$  is one that maximizes the expected payoff for the active player. Formally, for all states $s in S$, $ pi_(star)(s) := "arg" max_(a in A) Q_(pi_star)(s, a) $
 ]
 
 To find this optimal policy, we use *minimax via dynamic programming*. This approach calculates values from the end of the game backward to the initial state, ensuring optimal decisions at each step.
@@ -163,24 +153,18 @@ To find this optimal policy, we use *minimax via dynamic programming*. This appr
 Practically, this means we memoize the results of previously computed states to avoid redundant calculations. On an implementation level, instead we simply evaluate states in reverse order, using the structure of the game to build up the full value and policy functions.
 
 == Terminal States
-For terminal states, the problem is simple: find some $n$ that maximizes the probability that your sum $t$ will yield $a + t in [q, M]$. More precisely, for a game state $(a, q, T)$ we optimize the expected payoff $
-  n_star := max_(n in [0, oo)) sum_(t = n)^(s n) cases(
-    1 &"if" q < a + t <= M,
-    0 &"if" a + t = q,
-    -1 &"otherwise",
-  )
-$ <prop:upper-bound-actions>
+For terminal states, the problem is simple: find some $n$ that maximizes the probability that your sum $t$ will yield $a + t in [q, M]$. More precisely, for a game state $(a, q, T)$ we optimize the expected payoff $ n_star := max_(n in [0, oo)) sum_(t = n)^(s n) cases(
+  1 & "if" q < a + t <= M,
+  0 & "if" a + t = q,
+  -1 & "otherwise",
+) $ <prop:upper-bound-actions>
 
 Of course, it's impossible to test every possible $n$ in practice. Luckily, there is an upper bound on the optimal $n$ that can be derived from the game's parameters. Specifically, we can show that #proposition(title: "Upper Bound on Actions")[
-  In a state $(a, q, l)$, the optimal number of dice to roll satisfies $
-    n_star <= ceil((2 (M - a)) / (s + 1)) := n_"max"
-  $
+  In a state $(a, q, l)$, the optimal number of dice to roll satisfies $ n_star <= ceil((2 (M - a)) / (s + 1)) := n_"max" $
 ]
 
 #proof[
-  The expected value of $n$ die with $s$ sides is $
-    (n (s + 1)) / 2.
-  $ Thus $n_("max")$ is the point where the mean of $n$ exceeds the max score.
+  The expected value of $n$ die with $s$ sides is $ (n (s + 1)) / 2. $ Thus $n_("max")$ is the point where the mean of $n$ exceeds the max score.
 
   The pmf of the sum of the dice is unimodal. Consider any following state where $a + t <= M$. For any two $n$ such that $n_("max") <= n_1 < n_2$, the probability of being at that score is strictly decreasing between $n_1$ and $n_2$. This occurs at every score that yields a positive payoff. Therefore, the sum is strictly decreasing between $n_1$ and $n_2$.
 
@@ -190,7 +174,7 @@ Of course, it's impossible to test every possible $n$ in practice. Luckily, ther
 This is a reasonable upper bound. But we can actually do better. Running simulations on a wide set of n, we find that the payoff function is unimodal with respect to $n$. This means that once the payoff starts decreasing, we can stop testing further $n$ and take the maximum.
 
 #note[
-  The following optimization is not used in @greed (the greed solver source code).
+  The following optimization is not used in @greed (the greed optimizer source code).
 ]
 
 In addition to the above, it's possible to leverage previous knowledge to narrow the score of $n$ to test even more.
@@ -204,9 +188,7 @@ For normal states, optimization is more complex, as it becomes necessary to cons
 
 Consider the max score $(M, M, F)$. In this state, the active player is forced to roll $0$ dice, or otherwise lose. Thus the _only_ potentially non-negative payoff is to roll $0$ dice; this is the optimal policy. The payoff for the opponent is whatever the payoff of the terminal state $(M, M, T)$. Since this is a zero-sum game, our score is the negative of the opponent's score.
 
-Now consider two states $(M - 1, M, F), (M, M - 1, F)$. In these states, the only possible next states are busts, $(M, M, F)$, or terminal states. Therefore, the payoffs of the next states are all previously computed. Thus the optimal policy for a state $s = (a, q, F)$ can be computed by $
-  n_star := max_(n in NN) sum_(t = n)^(s) bold(p)(t | n, s) dot.op Q(s, a)
-$
+Now consider two states $(M - 1, M, F), (M, M - 1, F)$. In these states, the only possible next states are busts, $(M, M, F)$, or terminal states. Therefore, the payoffs of the next states are all previously computed. Thus the optimal policy for a state $s = (a, q, F)$ can be computed by $ n_star := max_(n in NN) sum_(t = n)^(s) bold(p)(t | n, s) dot.op Q(s, a) $
 
 This continues until $(0, 0, F)$, at which point all normal states have been computed.
 
@@ -226,12 +208,13 @@ The following visualizations present the computed optimal policies and their ass
 #let rolls = figure(
   image("assets/optimal_policy_100_6.svg", width: 100%),
   alt: "Plot of the optimal policy (dice counts) for Greed.",
-  caption: [*Optimal rolls for each state given the standard ruleset of $M = 100, s = 6$.* For normal states, there is a weak correlation between the opponents score and the optimal number of dice to throw. For terminal states, the optimal policy while ahead is to _stand_. For terminal states where victory is not guaranteed, there is a positive correlation between the difference in the queued score and the active score, and the optimal number of dice to roll. This accounts for the diagonal bands.]
+  caption: [*Optimal rolls for each state given the standard ruleset of $M = 100, s = 6$.* For normal states, there is a weak correlation between the opponents score and the optimal number of dice to throw. For terminal states, the optimal policy while ahead is to _stand_. For terminal states where victory is not guaranteed, there is a positive correlation between the difference in the queued score and the active score, and the optimal number of dice to roll. This accounts for the diagonal bands.],
 )
 
 #place(auto, scope: "parent", float: true)[
   #grid(
-    columns: 1, gutter: 1em,
+    columns: 1,
+    gutter: 1em,
     box[#payoffs <fig:payoffs>],
     box[#rolls <fig:dice-counts>],
   )

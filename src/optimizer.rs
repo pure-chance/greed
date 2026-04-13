@@ -1,6 +1,6 @@
 //! A policy optimizer for the game of Greed.
 //!
-//! The solver computes the optimal policy for a game of Greed with some ruleset
+//! The policy optimizer computes the optimal policy for a game of Greed with some ruleset
 //! `(M, s)`.
 
 use std::cmp::Ordering;
@@ -12,7 +12,7 @@ use crate::pmf::PMFLookup;
 
 /// Computes optimal strategies for Greed using dynamic programming.
 ///
-/// The solver determines the best action (number of dice to roll) for every
+/// The policy optimizer determines the best action (number of dice to roll) for every
 /// possible game state by working backwards from terminal positions. This
 /// approach guarantees mathematically optimal play.
 ///
@@ -33,12 +33,12 @@ use crate::pmf::PMFLookup;
 /// # Example
 ///
 /// ```rust
-/// use greed::Solver;
-/// let mut solver = Solver::new(100, 6);
-/// solver.solve();
+/// use greed::{PolicyOptimizer, Ruleset};
+/// let ruleset = Ruleset::new(100, 6);
+/// let optimizer = PolicyOptimizer::optimize(ruleset);
 /// ```
 #[derive(Debug, Clone, Default)]
-pub struct Solver {
+pub struct PolicyOptimizer {
     /// Ruleset for the game.
     ruleset: Ruleset,
     /// Computed optimal policy.
@@ -47,41 +47,33 @@ pub struct Solver {
     pmfs: PMFLookup,
 }
 
-impl Solver {
-    /// Create a new solver for the specified game parameters.
-    #[must_use]
-    pub fn new(max: u32, sides: u32) -> Self {
-        Self {
-            ruleset: Ruleset::new(max, sides),
-            policy: Policy::new(max),
-            pmfs: PMFLookup::default(),
-        }
-    }
-
-    /// Precompute probability mass functions for all strategically relevant
-    /// dice counts.
+impl PolicyOptimizer {
+    /// Constructs a new policy optimizer, where the optimal policy has not been computed yet.
     ///
-    /// Calculates an upper bound on the maximum dice needed by the solver
-    /// and generates PMFs up to that limit. This is done once and enables O(1)
-    /// pmf lookups during policy computation.
-    pub fn precompute_pmfs(&mut self) {
-        self.pmfs = PMFLookup::precompute(self.max(), self.sides());
+    /// This is used for certain benchmarking and testing scenarios.
+    pub fn new(ruleset: Ruleset) -> Self {
+        Self {
+            ruleset,
+            policy: Policy::new(ruleset.max()),
+            pmfs: PMFLookup::precompute(ruleset.max(), ruleset.sides()),
+        }
     }
 
     /// Compute the complete optimal policy for the given ruleset.
     ///
-    /// Performs the full two-stage solve: terminal states first, then normal
+    /// Performs the full two-stage optimization: terminal states first, then normal
     /// states. After completion, the policy can be queried for any valid game
     /// state.
-    pub fn solve(&mut self) {
-        self.precompute_pmfs();
-        self.solve_terminal_states();
-        self.solve_normal_states();
+    pub fn optimize(ruleset: Ruleset) -> Self {
+        let mut optimizer = PolicyOptimizer::new(ruleset);
+        optimizer.optimize_terminal_states();
+        optimizer.optimize_normal_states();
+        optimizer
     }
 
     /// Returns the computed policy.
     ///
-    /// The policy is only correct (and non-empty) after the `solve` method is
+    /// The policy is only correct (and non-empty) after the `optimize` method is
     /// called.
     #[must_use]
     pub const fn policy(&self) -> &Policy {
@@ -107,13 +99,13 @@ impl Solver {
     }
 }
 
-impl Solver {
+impl PolicyOptimizer {
     /// Compute optimal actions for all terminal (last round) states.
     ///
     /// Terminal states occur when one player has stood, triggering the final
-    /// round. These states can be solved independently since there are no
+    /// round. These states can be optimized independently since there are no
     /// future rounds to consider.
-    pub fn solve_terminal_states(&mut self) {
+    pub fn optimize_terminal_states(&mut self) {
         let states: Vec<_> = (0..=self.max())
             .flat_map(|turn| (0..=self.max()).map(move |next| State::new(turn, next, true)))
             .collect();
@@ -200,7 +192,7 @@ impl Solver {
     }
 }
 
-impl Solver {
+impl PolicyOptimizer {
     /// Compute optimal actions for all normal (non-terminal) game states.
     ///
     /// Uses dynamic programming with a specific ordering constraint: states
@@ -210,14 +202,14 @@ impl Solver {
     /// # Ordering Requirement
     ///
     /// Normal states reference other normal states and terminal states, so they
-    /// must be solved after terminal states and in the correct dependency
+    /// must be optimized after terminal states and in the correct dependency
     /// order.
     ///
     /// # Parallelization
     ///
     /// States within each order can be computed in parallel since they don't
     /// depend on each other.
-    pub fn solve_normal_states(&mut self) {
+    pub fn optimize_normal_states(&mut self) {
         // Process each order sequentially (constraint of the dynamic programming).
         for order in (0..=2 * self.max()).rev() {
             // For each order, process places in parallel.
@@ -273,7 +265,7 @@ impl Solver {
     ///
     /// # Panics
     ///
-    /// All reachable future states must already be solved for correct payoff
+    /// All reachable future states must already be optimized for correct payoff
     /// lookup.
     #[must_use]
     pub fn calc_normal_payoff(&self, state: State, dice_rolled: u32) -> f64 {
@@ -311,19 +303,19 @@ mod tests {
     fn test_bellman_optimality() {
         const EPSILON: f64 = 1e-12;
 
-        let mut solver = Solver::new(100, 6);
-        solver.solve();
+        let optimizer = PolicyOptimizer::optimize(Ruleset::new(100, 6));
 
-        for (state, action) in solver.policy().iter() {
+        for (state, action) in optimizer.policy().iter() {
             // Maximum possible optimal action.
-            let n_max = 2 * (solver.max() - state.active() + solver.sides()) / (solver.sides() + 1);
+            let n_max = 2 * (optimizer.max() - state.active() + optimizer.sides())
+                / (optimizer.sides() + 1);
             let stored_payoff = action.payoff();
 
             for n in 0..=n_max {
                 let computed = if state.last() {
-                    solver.calc_terminal_payoff(state, n)
+                    optimizer.calc_terminal_payoff(state, n)
                 } else {
-                    solver.calc_normal_payoff(state, n)
+                    optimizer.calc_normal_payoff(state, n)
                 };
 
                 assert!(
@@ -340,8 +332,7 @@ mod tests {
 
     #[test]
     fn test_1_2_policy() {
-        let mut solver = Solver::new(1, 2);
-        solver.solve();
+        let optimizer = PolicyOptimizer::optimize(Ruleset::new(1, 2));
 
         let expected = make_policy(
             &[
@@ -359,13 +350,12 @@ mod tests {
             1,
         );
 
-        assert_eq!(solver.policy(), &expected);
+        assert_eq!(optimizer.policy(), &expected);
     }
 
     #[test]
     fn test_2_2_policy() {
-        let mut solver = Solver::new(2, 2);
-        solver.solve();
+        let optimizer = PolicyOptimizer::optimize(Ruleset::new(2, 2));
 
         let expected = make_policy(
             &[
@@ -393,13 +383,12 @@ mod tests {
             2,
         );
 
-        assert_eq!(solver.policy(), &expected);
+        assert_eq!(optimizer.policy(), &expected);
     }
 
     #[test]
     fn test_3_2_policy() {
-        let mut solver = Solver::new(3, 2);
-        solver.solve();
+        let optimizer = PolicyOptimizer::optimize(Ruleset::new(3, 2));
 
         let expected = make_policy(
             &[
@@ -441,13 +430,12 @@ mod tests {
             3,
         );
 
-        assert_eq!(solver.policy(), &expected);
+        assert_eq!(optimizer.policy(), &expected);
     }
 
     #[test]
     fn test_4_2_policy() {
-        let mut solver = Solver::new(4, 2);
-        solver.solve();
+        let optimizer = PolicyOptimizer::optimize(Ruleset::new(4, 2));
 
         let expected = make_policy(
             &[
@@ -510,6 +498,6 @@ mod tests {
             4,
         );
 
-        assert_eq!(solver.policy(), &expected);
+        assert_eq!(optimizer.policy(), &expected);
     }
 }

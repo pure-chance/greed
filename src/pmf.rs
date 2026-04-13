@@ -2,7 +2,7 @@
 ///
 /// Precomputes and stores the PMF for every dice count from 0 to an upper
 /// bound, enabling O(1) lookup of P(sum = k | n dice, s sides). This is the
-/// performance-critical data structure of the solver — PMF lookups happen
+/// performance-critical data structure of the optimizer — PMF lookups happen
 /// millions of times during policy computation.
 ///
 /// # Layout
