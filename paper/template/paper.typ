@@ -6,7 +6,7 @@
   authors: (),
   abstract: [],
   references: none,
-  matter
+  matter,
 ) = {
   // Set document metadata --
   set document(
@@ -22,8 +22,8 @@
   place(top, float: true, scope: "parent")[
     #let authors = authors.join(", ")
     #set par(first-line-indent: 0pt)
-    #text(size: 2em, weight: "bold")[#title] #v(0.5em)
-    #text(size: 1.2em)[#authors] #v(1em)
+    #text(size: 2em, weight: "bold")[#title] #v(0.2em)
+    #text(size: 1.2em, style: "italic")[#authors] #v(0.2em)
   ]
 
   // abstract --

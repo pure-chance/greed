@@ -11,7 +11,7 @@
   set columns(gutter: 6mm)
 
   // Configure text properties --
-  set text(font: "Libertinus Serif", size: 9.5pt, weight: "regular")
+  set text(font: "Libertinus Serif", size: 9pt, weight: "regular")
   show raw: set text(font: "Maple Mono NF")
 
   // Configure paragraph properties --
@@ -24,20 +24,17 @@
 
   // Configure heading properties --
   set heading(numbering: "1.1")
-  show heading: set text(size: 10pt)
-  show heading.where(level: 1): it => {
-    set block(above: 1.6em, below: 0.8em)
-    it
-  }
-
-  // headings with level > 2 are inlined
   show heading: it => {
-    if 1 < it.level {
+    if it.level == 1 {
+      set text(size: 10pt)
+      set block(above: 1.6em, below: 0.8em)
+      it
+    } else {
       // inline heading
       set text(size: 9.5pt)
       let heading = counter(heading).display(auto) + h(0.25em) + it.body
       block(below: 0pt) + heading + [.]
-    } else { it }
+    }
   }
 
   show heading.where(level: 1): set text(
