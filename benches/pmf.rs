@@ -18,7 +18,7 @@ fn pmf_benchmarks(c: &mut Criterion) {
         b.iter(|| {
             for n in 0..=MAX {
                 for total in n..=n * SIDES {
-                    let _ = pmf_lookup[(n, total)];
+                    let _ = pmf_lookup.pmf(n, total);
                 }
             }
         });

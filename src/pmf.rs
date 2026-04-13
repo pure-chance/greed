@@ -1,5 +1,3 @@
-use std::ops::{Index, IndexMut};
-
 /// Lookup table for dice-roll probability mass functions (PMFs).
 ///
 /// Precomputes and stores the PMF for every dice count from 0 to an upper
@@ -86,41 +84,20 @@ impl PMFLookup {
         }
         convolution
     }
-}
 
-impl Index<(u32, u32)> for PMFLookup {
-    type Output = f64;
-
-    /// Returns a reference to the PMF value P(sum = total | n dice).
+    /// Returns the probability `P(sum = total | n dice)`.
     ///
     /// # Safety
     ///
     /// Caller must ensure `n` ≤ `max_n` and `total` ≥ `n`.
-    #[inline]
-    fn index(&self, (n, total): (u32, u32)) -> &Self::Output {
-        debug_assert!(n <= self.max_n, "n={} exceeds max_n={}", n, self.max_n);
+    pub fn pmf(&self, n: u32, total: u32) -> f64 {
+        let max_n = self.max_n;
+        debug_assert!(n <= max_n, "n={n} exceeds max_n={max_n}");
         debug_assert!(total >= n, "total={total} less than n={n}");
         unsafe {
             let offset = *self.offsets.get_unchecked(n as usize);
             let index = offset + (total - n) as usize;
-            &self.data[index]
-        }
-    }
-}
-
-impl IndexMut<(u32, u32)> for PMFLookup {
-    /// Returns a mutable reference to the PMF value P(sum = total | n dice).
-    ///
-    /// # Safety
-    ///
-    /// Caller must ensure `n` ≤ `max_n` and `total` ≥ `n`.
-    fn index_mut(&mut self, (n, total): (u32, u32)) -> &mut Self::Output {
-        debug_assert!(n <= self.max_n, "n={} exceeds max_n={}", n, self.max_n);
-        debug_assert!(total >= n, "total={total} less than n={n}");
-        unsafe {
-            let offset = *self.offsets.get_unchecked(n as usize);
-            let index = offset + (total - n) as usize;
-            &mut self.data[index]
+            self.data[index]
         }
     }
 }
@@ -146,55 +123,55 @@ mod tests {
     }
     #[test]
     fn pmf_zero_die() {
-        let pmf = PMFLookup::precompute(0, 0);
-        assert_eq!(pmf[(0, 0)], 1.0);
+        let pmf_lookup = PMFLookup::precompute(0, 0);
+        assert_eq!(pmf_lookup.pmf(0, 0), 1.0);
     }
 
     #[test]
     fn pmf_one_die() {
-        let pmf = PMFLookup::precompute(1, 6);
-        assert_approx_eq!(pmf[(1, 1)], 1.0 / 6.0);
-        assert_approx_eq!(pmf[(1, 2)], 1.0 / 6.0);
-        assert_approx_eq!(pmf[(1, 3)], 1.0 / 6.0);
-        assert_approx_eq!(pmf[(1, 4)], 1.0 / 6.0);
-        assert_approx_eq!(pmf[(1, 5)], 1.0 / 6.0);
-        assert_approx_eq!(pmf[(1, 6)], 1.0 / 6.0);
+        let pmf_lookup = PMFLookup::precompute(1, 6);
+        assert_approx_eq!(pmf_lookup.pmf(1, 1), 1.0 / 6.0);
+        assert_approx_eq!(pmf_lookup.pmf(1, 2), 1.0 / 6.0);
+        assert_approx_eq!(pmf_lookup.pmf(1, 3), 1.0 / 6.0);
+        assert_approx_eq!(pmf_lookup.pmf(1, 4), 1.0 / 6.0);
+        assert_approx_eq!(pmf_lookup.pmf(1, 5), 1.0 / 6.0);
+        assert_approx_eq!(pmf_lookup.pmf(1, 6), 1.0 / 6.0);
     }
 
     #[test]
     fn pmf_two_die() {
-        let pmf = PMFLookup::precompute(2, 6);
-        assert_approx_eq!(pmf[(2, 2)], 1.0 / 36.0);
-        assert_approx_eq!(pmf[(2, 3)], 2.0 / 36.0);
-        assert_approx_eq!(pmf[(2, 4)], 3.0 / 36.0);
-        assert_approx_eq!(pmf[(2, 5)], 4.0 / 36.0);
-        assert_approx_eq!(pmf[(2, 6)], 5.0 / 36.0);
-        assert_approx_eq!(pmf[(2, 7)], 6.0 / 36.0);
-        assert_approx_eq!(pmf[(2, 8)], 5.0 / 36.0);
-        assert_approx_eq!(pmf[(2, 9)], 4.0 / 36.0);
-        assert_approx_eq!(pmf[(2, 10)], 3.0 / 36.0);
-        assert_approx_eq!(pmf[(2, 11)], 2.0 / 36.0);
-        assert_approx_eq!(pmf[(2, 12)], 1.0 / 36.0);
+        let pmf_lookup = PMFLookup::precompute(2, 6);
+        assert_approx_eq!(pmf_lookup.pmf(2, 2), 1.0 / 36.0);
+        assert_approx_eq!(pmf_lookup.pmf(2, 3), 2.0 / 36.0);
+        assert_approx_eq!(pmf_lookup.pmf(2, 4), 3.0 / 36.0);
+        assert_approx_eq!(pmf_lookup.pmf(2, 5), 4.0 / 36.0);
+        assert_approx_eq!(pmf_lookup.pmf(2, 6), 5.0 / 36.0);
+        assert_approx_eq!(pmf_lookup.pmf(2, 7), 6.0 / 36.0);
+        assert_approx_eq!(pmf_lookup.pmf(2, 8), 5.0 / 36.0);
+        assert_approx_eq!(pmf_lookup.pmf(2, 9), 4.0 / 36.0);
+        assert_approx_eq!(pmf_lookup.pmf(2, 10), 3.0 / 36.0);
+        assert_approx_eq!(pmf_lookup.pmf(2, 11), 2.0 / 36.0);
+        assert_approx_eq!(pmf_lookup.pmf(2, 12), 1.0 / 36.0);
     }
 
     #[test]
     fn pmf_three_die() {
-        let pmf = PMFLookup::precompute(3, 6);
-        assert_approx_eq!(pmf[(3, 3)], 1.0 / 216.0);
-        assert_approx_eq!(pmf[(3, 4)], 3.0 / 216.0);
-        assert_approx_eq!(pmf[(3, 5)], 6.0 / 216.0);
-        assert_approx_eq!(pmf[(3, 6)], 10.0 / 216.0);
-        assert_approx_eq!(pmf[(3, 7)], 15.0 / 216.0);
-        assert_approx_eq!(pmf[(3, 8)], 21.0 / 216.0);
-        assert_approx_eq!(pmf[(3, 9)], 25.0 / 216.0);
-        assert_approx_eq!(pmf[(3, 10)], 27.0 / 216.0);
-        assert_approx_eq!(pmf[(3, 11)], 27.0 / 216.0);
-        assert_approx_eq!(pmf[(3, 12)], 25.0 / 216.0);
-        assert_approx_eq!(pmf[(3, 13)], 21.0 / 216.0);
-        assert_approx_eq!(pmf[(3, 14)], 15.0 / 216.0);
-        assert_approx_eq!(pmf[(3, 15)], 10.0 / 216.0);
-        assert_approx_eq!(pmf[(3, 16)], 6.0 / 216.0);
-        assert_approx_eq!(pmf[(3, 17)], 3.0 / 216.0);
-        assert_approx_eq!(pmf[(3, 18)], 1.0 / 216.0);
+        let pmf_lookup = PMFLookup::precompute(3, 6);
+        assert_approx_eq!(pmf_lookup.pmf(3, 3), 1.0 / 216.0);
+        assert_approx_eq!(pmf_lookup.pmf(3, 4), 3.0 / 216.0);
+        assert_approx_eq!(pmf_lookup.pmf(3, 5), 6.0 / 216.0);
+        assert_approx_eq!(pmf_lookup.pmf(3, 6), 10.0 / 216.0);
+        assert_approx_eq!(pmf_lookup.pmf(3, 7), 15.0 / 216.0);
+        assert_approx_eq!(pmf_lookup.pmf(3, 8), 21.0 / 216.0);
+        assert_approx_eq!(pmf_lookup.pmf(3, 9), 25.0 / 216.0);
+        assert_approx_eq!(pmf_lookup.pmf(3, 10), 27.0 / 216.0);
+        assert_approx_eq!(pmf_lookup.pmf(3, 11), 27.0 / 216.0);
+        assert_approx_eq!(pmf_lookup.pmf(3, 12), 25.0 / 216.0);
+        assert_approx_eq!(pmf_lookup.pmf(3, 13), 21.0 / 216.0);
+        assert_approx_eq!(pmf_lookup.pmf(3, 14), 15.0 / 216.0);
+        assert_approx_eq!(pmf_lookup.pmf(3, 15), 10.0 / 216.0);
+        assert_approx_eq!(pmf_lookup.pmf(3, 16), 6.0 / 216.0);
+        assert_approx_eq!(pmf_lookup.pmf(3, 17), 3.0 / 216.0);
+        assert_approx_eq!(pmf_lookup.pmf(3, 18), 1.0 / 216.0);
     }
 }

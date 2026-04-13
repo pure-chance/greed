@@ -57,7 +57,7 @@ fn main() {
     match format {
         "stdout" => policy.stdout(),
         "csv" => {
-            let csv_filename = format!("../results/greed_{max}_{sides}.csv");
+            let csv_filename = format!("results/greed_{max}_{sides}.csv");
             match policy.csv(&csv_filename) {
                 Ok(()) => println!("Policy exported to {csv_filename}"),
                 Err(e) => eprintln!("Failed to write CSV file: {e}"),

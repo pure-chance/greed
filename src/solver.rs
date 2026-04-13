@@ -188,7 +188,7 @@ impl Solver {
         }
 
         (dice_rolled..=self.sides() * dice_rolled).fold(0.0, |acc, dice_total| {
-            let probability = self.pmfs[(dice_rolled, dice_total)];
+            let probability = self.pmfs.pmf(dice_rolled, dice_total);
             let outcome = match (state.active() + dice_total).cmp(&state.queued()) {
                 Ordering::Greater if state.active() + dice_total <= self.max() => 1.0,
                 Ordering::Equal => 0.0,
@@ -281,7 +281,7 @@ impl Solver {
             return -self.policy[terminal_state].payoff();
         }
         (dice_rolled..=self.sides() * dice_rolled).fold(0.0, |acc, dice_total| {
-            let probability: f64 = self.pmfs[(dice_rolled, dice_total)];
+            let probability = self.pmfs.pmf(dice_rolled, dice_total);
             let payoff = if state.active() + dice_total <= self.max() {
                 let state = State::new(state.queued(), state.active() + dice_total, false);
                 -self.policy[state].payoff()
