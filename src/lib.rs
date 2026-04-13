@@ -35,3 +35,6 @@ mod pmf;
 pub use greed::{Action, Policy, Ruleset, State};
 pub use optimizer::PolicyOptimizer;
 pub use pmf::PMFLookup;
+
+mod verification;
+pub use verification::{verify_payoffs, verify_policy};

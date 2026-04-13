@@ -22,9 +22,9 @@ Play continues back and forth until one player decides to roll 0 dice, signaling
 
 ```sh
 # Generate csv file `greed_[max]_[sides].csv`.
-cargo run --release -- --max=100 --sides=6 --format=csv
+cargo run --release -- optimize --max=100 --sides=6 --format=csv
 # Generate a (mostly) human readable report.
-cargo run --release -- --max=100 --sides=6 --format=stdout
+cargo run --release -- optimize --max=100 --sides=6 --format=stdout
 ```
 
 ### Visualizing

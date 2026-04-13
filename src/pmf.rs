@@ -85,7 +85,7 @@ impl PMFLookup {
         convolution
     }
 
-    /// Returns the probability `P(sum = total | n dice)`.
+    /// Returns the probability `P(sum = total | n)`.
     ///
     /// # Safety
     ///

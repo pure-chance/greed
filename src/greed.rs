@@ -6,9 +6,9 @@ use std::ops::{Index, IndexMut};
 /// The standard ruleset is `(100, 6)`.
 #[derive(Debug, Copy, Clone)]
 pub struct Ruleset {
-    /// Maximum score allowed before busting (typically 100).
+    /// Maximum score allowed before busting (default 100).
     max: u32,
-    /// The number of sides on each die (typically 6).
+    /// The number of sides on each die (default 6).
     sides: u32,
 }
 
@@ -25,6 +25,8 @@ impl Ruleset {
     /// by zero in the optimizer; a `max` of 0 makes every roll a bust.
     #[must_use]
     pub const fn new(max: u32, sides: u32) -> Self {
+        assert!(max > 0);
+        assert!(sides > 0);
         Self { max, sides }
     }
 
@@ -94,6 +96,18 @@ impl fmt::Debug for State {
     }
 }
 
+impl fmt::Display for State {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "({}, {}, {})",
+            self.active,
+            self.queued,
+            if self.last { "terminal" } else { "normal" }
+        )
+    }
+}
+
 /// An (optimal) action for a single game state.
 ///
 /// An action consists of a number of dice to roll (`n`) and a payoff
@@ -116,6 +130,7 @@ impl Action {
     /// payoff.
     #[must_use]
     pub const fn new(n: u32, payoff: f64) -> Self {
+        assert!(-1.0 <= payoff && payoff <= 1.0);
         let payoff = if payoff == 0.0 { 0.0 } else { payoff };
         Self { n, payoff }
     }
@@ -203,25 +218,30 @@ impl Policy {
             .into_iter()
             .partition(|(state, _)| state.last());
 
+        // Determine the width needed for active and queued fields
+        let width = self.max.to_string().len();
+
         // terminal states
         for (state, action) in terminal_states {
             println!(
-                "({}, {}, terminal) => (dice: #{}, payoff: {})",
+                "({:0>w$}, {:0>w$}, true) => (dice: {}, payoff: {})",
                 state.active(),
                 state.queued(),
                 action.n(),
-                action.payoff()
+                action.payoff(),
+                w = width
             );
         }
         println!();
         // normal states
         for (state, action) in normal_states {
             println!(
-                "({}, {}, normal) => (dice: #{}, payoff: {})",
+                "({:0>w$}, {:0>w$}, false) => (dice: {}, payoff: {})",
                 state.active(),
                 state.queued(),
                 action.n(),
-                action.payoff()
+                action.payoff(),
+                w = width
             );
         }
     }

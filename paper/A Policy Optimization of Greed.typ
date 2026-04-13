@@ -116,7 +116,7 @@ For a single die: $ bold(p)(t | 1, s) = cases(
 
 For $n > 1$ dice, we compute recursively: $ bold(p)(t | n, s) = sum_(k=1)^s bold(p)(t - k | n - 1, s) dot bold(p)(k | 1, s). $
 
-= Policy optimizer <ch:policy>
+= Policy Optimizer <ch:policy>
 It's worth expanding on the concept of a payoff. In the rules, the payoff function occurs only at the conclusion of the game. We generalize the payoff function to include intermediate states, allowing us to optimize the expected payoff at each step.
 
 #remark[
