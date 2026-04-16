@@ -210,9 +210,7 @@ impl PolicyOptimizer {
     /// States within each order can be computed in parallel since they don't
     /// depend on each other.
     pub fn optimize_normal_states(&mut self) {
-        // Process each order sequentially (constraint of the dynamic programming).
         for order in (0..=2 * self.max()).rev() {
-            // For each order, process places in parallel.
             let states_actions: Vec<(State, Action)> = (0..=order.min(2 * self.max() - order))
                 .into_par_iter() // Parallelize only within each order.
                 .map(|place| {
@@ -224,7 +222,6 @@ impl PolicyOptimizer {
                 })
                 .collect();
 
-            // Insert the results for this order into the policy.
             for (state, action) in states_actions {
                 self.policy[state] = action;
             }
