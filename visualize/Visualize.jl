@@ -57,8 +57,8 @@ if @isdefined(ARGS) && length(ARGS) > 0
     fig_payoffs = visualize(file_path, :payoff)
     fig_rolls = visualize(file_path, :n)
 
-    save("optimal_payoffs_$(max)_$(sides).svg", fig_payoffs)
-    save("optimal_policy_$(max)_$(sides).svg", fig_rolls)
+    save("../results/optimal_payoffs_$(max)_$(sides).svg", fig_payoffs)
+    save("../results/optimal_policy_$(max)_$(sides).svg", fig_rolls)
 else
     print("Usage: julia visualize.jl <csv_path>\n")
     exit(1)

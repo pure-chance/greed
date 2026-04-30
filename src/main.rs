@@ -1,13 +1,13 @@
 //! # A Policy Optimization of Greed
 //!
-//! The Command Line Interface (CLI) for the Greed game optimizer.
+//! The Command Line Interface (CLI) for the Greed optimizer.
 //!
 //! ## Usage
 //!
 //! ```sh
 //! # generates a (mostly) human readable report
 // cargo run --release -- --max=100 --sides=6 --format=stdout
-//! # generates csv file `visualize/greed_[max]_[sides].csv`
+//! # generates csv file `results/greed_[max]_[sides].csv`
 //! cargo run --release -- --max=100 --sides=6 --format=csv
 //! ```
 
