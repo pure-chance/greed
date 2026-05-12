@@ -1,7 +1,7 @@
 //! A policy optimizer for the game of Greed.
 //!
-//! The policy optimizer computes the optimal policy for a game of Greed with some ruleset
-//! `(M, s)`.
+//! The policy optimizer computes the optimal policy for a game of Greed with
+//! some ruleset `(M, s)`.
 
 use std::cmp::Ordering;
 
@@ -12,8 +12,8 @@ use crate::pmf::PMFLookup;
 
 /// Computes optimal strategies for Greed using dynamic programming.
 ///
-/// The policy optimizer determines the best action (number of dice to roll) for every
-/// possible game state by working backwards from terminal positions. This
+/// The policy optimizer determines the best action (number of dice to roll) for
+/// every possible game state by working backwards from terminal positions. This
 /// approach guarantees mathematically optimal play.
 ///
 /// # Algorithm Overview
@@ -48,7 +48,8 @@ pub struct PolicyOptimizer {
 }
 
 impl PolicyOptimizer {
-    /// Constructs a new policy optimizer, where the optimal policy has not been computed yet.
+    /// Constructs a new policy optimizer, where the optimal policy has not been
+    /// computed yet.
     ///
     /// This is used for certain benchmarking and testing scenarios.
     pub fn new(ruleset: Ruleset) -> Self {
@@ -61,9 +62,9 @@ impl PolicyOptimizer {
 
     /// Compute the complete optimal policy for the given ruleset.
     ///
-    /// Performs the full two-stage optimization: terminal states first, then normal
-    /// states. After completion, the policy can be queried for any valid game
-    /// state.
+    /// Performs the full two-stage optimization: terminal states first, then
+    /// normal states. After completion, the policy can be queried for any
+    /// valid game state.
     pub fn optimize(ruleset: Ruleset) -> Self {
         let mut optimizer = PolicyOptimizer::new(ruleset);
         optimizer.optimize_terminal_states();
@@ -73,8 +74,8 @@ impl PolicyOptimizer {
 
     /// Returns the computed policy.
     ///
-    /// The policy is only correct (and non-empty) after the `optimize` method is
-    /// called.
+    /// The policy is only correct (and non-empty) after the `optimize` method
+    /// is called.
     #[must_use]
     pub const fn policy(&self) -> &Policy {
         &self.policy
@@ -285,8 +286,9 @@ impl PolicyOptimizer {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use pretty_assertions::assert_eq;
+
+    use super::*;
 
     fn make_policy(entries: &[(State, Action)], max: u32) -> Policy {
         let mut policy = Policy::new(max);
