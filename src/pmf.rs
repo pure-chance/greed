@@ -90,6 +90,7 @@ impl PMFLookup {
     /// # Safety
     ///
     /// Caller must ensure `n` ≤ `max_n` and `total` ≥ `n`.
+    #[must_use]
     pub fn pmf(&self, n: u32, total: u32) -> f64 {
         let max_n = self.max_n;
         debug_assert!(n <= max_n, "n={n} exceeds max_n={max_n}");

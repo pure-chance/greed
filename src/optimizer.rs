@@ -52,6 +52,7 @@ impl PolicyOptimizer {
     /// computed yet.
     ///
     /// This is used for certain benchmarking and testing scenarios.
+    #[must_use]
     pub fn new(ruleset: Ruleset) -> Self {
         Self {
             ruleset,
@@ -65,8 +66,9 @@ impl PolicyOptimizer {
     /// Performs the full two-stage optimization: terminal states first, then
     /// normal states. After completion, the policy can be queried for any
     /// valid game state.
+    #[must_use]
     pub fn optimize(ruleset: Ruleset) -> Self {
-        let mut optimizer = PolicyOptimizer::new(ruleset);
+        let mut optimizer = Self::new(ruleset);
         optimizer.optimize_terminal_states();
         optimizer.optimize_normal_states();
         optimizer
