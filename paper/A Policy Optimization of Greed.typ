@@ -160,7 +160,7 @@ For terminal states, the problem is simple: find some $n$ that maximizes the pro
 ) $ <prop:upper-bound-actions>
 
 Of course, it's impossible to test every possible $n$ in practice. Luckily, there is an upper bound on the optimal $n$ that can be derived from the game's parameters. Specifically, we can show that #proposition(title: "Upper Bound on Actions")[
-  In a state $(a, q, l)$, the optimal number of dice to roll satisfies $ n_star <= ceil((2 (M - a)) / (s + 1)) := n_"max" $
+  In a state $(a, q, l)$, the optimal number of dice to roll satisfies $ n_star <= ceil((2 (M - a)) / (s + 1)) := n_"max". $
 ]
 
 #proof[
@@ -188,7 +188,7 @@ For normal states, optimization is more complex, as it becomes necessary to cons
 
 Consider the max score $(M, M, F)$. In this state, the active player is forced to roll $0$ dice, or otherwise lose. Thus the _only_ potentially non-negative payoff is to roll $0$ dice; this is the optimal policy. The payoff for the opponent is whatever the payoff of the terminal state $(M, M, T)$. Since this is a zero-sum game, our score is the negative of the opponent's score.
 
-Now consider two states $(M - 1, M, F), (M, M - 1, F)$. In these states, the only possible next states are busts, $(M, M, F)$, or terminal states. Therefore, the payoffs of the next states are all previously computed. Thus the optimal policy for a state $s = (a, q, F)$ can be computed by $ n_star := max_(n in NN) sum_(t = n)^(s) bold(p)(t | n, s) dot.op Q(s, a) $
+Now consider two states $(M - 1, M, F), (M, M - 1, F)$. In these states, the only possible next states are busts, $(M, M, F)$, or terminal states. Therefore, the payoffs of the next states are all previously computed. Thus the optimal policy for a state $s = (a, q, F)$ can be computed by $ n_star := max_(n in NN) sum_(t = n)^(s) bold(p)(t | n, s) dot.op Q(s, a). $
 
 This continues until $(0, 0, F)$, at which point all normal states have been computed.
 
@@ -223,7 +223,7 @@ The following visualizations present the computed optimal policies and their ass
 == A Game of Chicken
 Looking at @fig:payoffs, it's clear that you should absolutely not stop rolling dice if you are not already very close to the max score, because otherwise the opponent can easily catch up and win. The most notable feature is the band of balanced endgames (the white band), which follows a square-root function. Relating the terminal payoffs to the normal states, notice that the (bad) red area over the white band is the inverse of the (good) blue area for the normal payoffs. This is expected, since normal states in the positive region will lead the opponent to the corresponding negative region in the terminal states.
 
-Another detail worth mentioning is the 4 white tiles at $(100, 100, F), (99, 99, F), ..., (96, 96, F)$ These states are ties, because rolling even one die will result in a bust at least half the time.
+Another detail worth mentioning is the 4 white tiles at $(100, 100, F), (99, 99, F), ..., (96, 96, F)$. These states are ties, because rolling even one die will result in a bust at least half the time.
 
 Adjacent to all this, notice that the blue band for normal states corresponds to the white band on the normal rolls, signifying that when you have even a little advantage, you should aim to end the game on that turn. This implies that the game is very endgame focused, and the aim is to gain an advantage and end the game is fast as possible.
 
