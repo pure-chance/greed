@@ -14,7 +14,7 @@ fn terminal_states(c: &mut Criterion) {
         // satisfy invariants
         let mut optimizer = PolicyOptimizer::optimize(ruleset);
 
-        // Benchmark: solving normal states
+        // Benchmark: optimizing normal states
         group.bench_with_input(
             BenchmarkId::new(
                 "optimize",
@@ -35,23 +35,6 @@ fn terminal_states(c: &mut Criterion) {
             &ruleset,
             |b, _| {
                 b.iter(|| optimizer.find_optimal_terminal_action(State::new(10, 10, false)));
-            },
-        );
-
-        // Benchmark: computing an optimal payoff
-        group.bench_with_input(
-            BenchmarkId::new(
-                "calc_payoff",
-                format!("M={},s={}", ruleset.max(), ruleset.sides()),
-            ),
-            &ruleset,
-            |b, _| {
-                b.iter(|| {
-                    optimizer.calc_terminal_payoff(
-                        State::new(ruleset.max() / 2, ruleset.sides() / 2, false),
-                        3,
-                    )
-                });
             },
         );
     }

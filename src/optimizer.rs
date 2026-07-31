@@ -151,18 +151,23 @@ impl PolicyOptimizer {
             return Action::new(state.queued() - state.active() + 1, 1.0); // Guaranteed win
         }
 
-        // `range` starts at the min non-zero payoff, and ends at the maximum
-        // optimal payoff (the point where the mean of the sum + active exceeds
-        // the max score).
+        // `range` spans [minimum non-zero payoff, maximum optimal payoff],
+        // where maximum optimal payoff is the point where E[sum + active]
+        // exceeds the max score.
         let range = (state.queued() - state.active()) / self.sides()
             ..=2 * (self.max() - state.active() + self.sides()) / (self.sides() + 1).max(1);
 
         range
             .rev() // prefer conservative rolls
-            .map(|dice_rolled| (dice_rolled, self.calc_terminal_payoff(state, dice_rolled)))
-            .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
-            .map(|(dice_rolled, payoff)| Action::new(dice_rolled, payoff))
-            .unwrap() // Possible win
+            .map(|dice_rolled| {
+                Action::new(dice_rolled, self.calc_terminal_payoff(state, dice_rolled))
+            })
+            .max_by(|a, b| {
+                a.payoff()
+                    .partial_cmp(&b.payoff())
+                    .expect("All payoffs are not NaN")
+            })
+            .expect("Must be at least one possibly optimal action")
     }
 
     /// Calculate expected payoff for rolling a specific number of dice in a
@@ -247,12 +252,17 @@ impl PolicyOptimizer {
         // greater than the max score is $ceil(2 * (MAX - a) / (s + 1))$. This is the
         // same as $2 * (MAX - a + s) / (s + 1)$. This is how `limit` is calculated.
         let limit = 2 * (self.max() - state.active() + self.sides()) / (self.sides() + 1).max(1);
-        let (optimal_roll, optimal_payoff) = (0..=limit)
-            .rev() // If equal, the less aggressive move is taken.
-            .map(|dice_rolled| (dice_rolled, self.calc_normal_payoff(state, dice_rolled)))
-            .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
-            .unwrap();
-        Action::new(optimal_roll, optimal_payoff)
+        (0..=limit)
+            .rev() // prefer conservative rolls
+            .map(|dice_rolled| {
+                Action::new(dice_rolled, self.calc_normal_payoff(state, dice_rolled))
+            })
+            .max_by(|a, b| {
+                a.payoff()
+                    .partial_cmp(&b.payoff())
+                    .expect("All payoffs are not NaN")
+            })
+            .expect("Must be at least one possibly optimal action")
     }
 
     /// Calculate expected payoff for rolling a specific number of dice in a
