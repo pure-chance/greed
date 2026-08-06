@@ -132,11 +132,12 @@ impl PolicyOptimizer {
             return Action::new(state.queued() - state.active() + 1, 1.0); // Guaranteed win
         }
 
-        // `range` spans [minimum non-zero payoff, maximum optimal payoff],
-        // where maximum optimal payoff is the point where E[sum + active]
-        // exceeds the max score.
-        let range = (state.queued() - state.active()) / self.sides()
-            ..=2 * (self.max() - state.active() + self.sides()) / (self.sides() + 1).max(1);
+        // `range` spans [middle_n - 1, middle_n + 1], where `middle_n` is the
+        // n where the mean of `active + E[sum]` is exactly in the middle of
+        // `queued` and `max`. `range` is guaranteed to contain the optimal
+        // action.
+        let middle_n = (self.max() + state.queued() - 2 * state.active()) / (self.sides() + 1);
+        let range = middle_n.saturating_sub(1)..=middle_n + 1;
 
         range
             .rev() // prefer conservative rolls
