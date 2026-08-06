@@ -35,14 +35,12 @@ use crate::pmf::PMFLookup;
 /// ```rust
 /// use greed::{PolicyOptimizer, Ruleset};
 /// let ruleset = Ruleset::new(100, 6);
-/// let optimizer = PolicyOptimizer::optimize(ruleset);
+/// let policy = PolicyOptimizer::optimize(ruleset);
 /// ```
 #[derive(Debug, Clone, Default)]
 pub struct PolicyOptimizer {
     /// Ruleset for the game.
     ruleset: Ruleset,
-    /// Computed optimal policy.
-    policy: Policy,
     /// Precomputed probability mass functions for dice rolls.
     pmfs: PMFLookup,
 }
@@ -56,7 +54,6 @@ impl PolicyOptimizer {
     pub fn new(ruleset: Ruleset) -> Self {
         Self {
             ruleset,
-            policy: Policy::new(ruleset.max()),
             pmfs: PMFLookup::precompute(ruleset.max(), ruleset.sides()),
         }
     }
@@ -67,20 +64,12 @@ impl PolicyOptimizer {
     /// normal states. After completion, the policy can be queried for any
     /// valid game state.
     #[must_use]
-    pub fn optimize(ruleset: Ruleset) -> Self {
-        let mut optimizer = Self::new(ruleset);
-        optimizer.optimize_terminal_states();
-        optimizer.optimize_normal_states();
-        optimizer
-    }
-
-    /// Returns the computed policy.
-    ///
-    /// The policy is only correct (and non-empty) after the `optimize` method
-    /// is called.
-    #[must_use]
-    pub const fn policy(&self) -> &Policy {
-        &self.policy
+    pub fn optimize(ruleset: Ruleset) -> Policy {
+        let optimizer = Self::new(ruleset);
+        let mut policy = Policy::new(ruleset.max());
+        optimizer.optimize_terminal_states(&mut policy);
+        optimizer.optimize_normal_states(&mut policy);
+        policy
     }
 
     /// Returns the ruleset of this Greed game.
@@ -108,19 +97,11 @@ impl PolicyOptimizer {
     /// Terminal states occur when one player has stood, triggering the final
     /// round. These states can be optimized independently since there are no
     /// future rounds to consider.
-    pub fn optimize_terminal_states(&mut self) {
-        let states: Vec<_> = (0..=self.max())
-            .flat_map(|turn| (0..=self.max()).map(move |next| State::new(turn, next, true)))
-            .collect();
-
-        let actions: Vec<_> = states
-            .par_iter()
-            .map(|state| (*state, self.find_optimal_terminal_action(*state)))
-            .collect();
-
-        for (state, action) in actions {
-            self.policy[state] = action;
-        }
+    pub fn optimize_terminal_states(&self, policy: &mut Policy) {
+        policy.apply_to_states(
+            |state| state.last(),
+            |state| self.find_optimal_terminal_action(state),
+        );
     }
 
     /// Find the optimal number of dice to roll in a terminal state.
@@ -217,7 +198,7 @@ impl PolicyOptimizer {
     ///
     /// States within each order can be computed in parallel since they don't
     /// depend on each other.
-    pub fn optimize_normal_states(&mut self) {
+    pub fn optimize_normal_states(&self, policy: &mut Policy) {
         for order in (0..=2 * self.max()).rev() {
             let states_actions: Vec<(State, Action)> = (0..=order.min(2 * self.max() - order))
                 .into_par_iter() // Parallelize only within each order.
@@ -225,13 +206,13 @@ impl PolicyOptimizer {
                     let turn = order.min(self.max()) - place;
                     let next = order.max(self.max()) - self.max() + place;
                     let state = State::new(turn, next, false);
-                    let action = self.find_optimal_normal_action(state);
+                    let action = self.find_optimal_normal_action(policy, state);
                     (state, action)
                 })
                 .collect();
 
             for (state, action) in states_actions {
-                self.policy[state] = action;
+                policy[state] = action;
             }
         }
     }
@@ -247,7 +228,7 @@ impl PolicyOptimizer {
     ///
     /// Panics if potential future states have not already been computed.
     #[must_use]
-    pub fn find_optimal_normal_action(&self, state: State) -> Action {
+    pub fn find_optimal_normal_action(&self, policy: &Policy, state: State) -> Action {
         // The mean is $(n)(s + 1) / 2$, thus the $n$ for which the mean next score is
         // greater than the max score is $ceil(2 * (MAX - a) / (s + 1))$. This is the
         // same as $2 * (MAX - a + s) / (s + 1)$. This is how `limit` is calculated.
@@ -255,7 +236,10 @@ impl PolicyOptimizer {
         (0..=limit)
             .rev() // prefer conservative rolls
             .map(|dice_rolled| {
-                Action::new(dice_rolled, self.calc_normal_payoff(state, dice_rolled))
+                Action::new(
+                    dice_rolled,
+                    self.calc_normal_payoff(policy, state, dice_rolled),
+                )
             })
             .max_by(|a, b| {
                 a.payoff()
@@ -278,16 +262,16 @@ impl PolicyOptimizer {
     /// All reachable future states must already be optimized for correct payoff
     /// lookup.
     #[must_use]
-    pub fn calc_normal_payoff(&self, state: State, dice_rolled: u32) -> f64 {
+    pub fn calc_normal_payoff(&self, policy: &Policy, state: State, dice_rolled: u32) -> f64 {
         if dice_rolled == 0 {
             let terminal_state = State::new(state.queued(), state.active(), true);
-            return -self.policy[terminal_state].payoff();
+            return -policy[terminal_state].payoff();
         }
         (dice_rolled..=self.sides() * dice_rolled).fold(0.0, |acc, dice_total| {
             let probability = self.pmfs.pmf(dice_rolled, dice_total);
             let payoff = if state.active() + dice_total <= self.max() {
                 let state = State::new(state.queued(), state.active() + dice_total, false);
-                -self.policy[state].payoff()
+                -policy[state].payoff()
             } else {
                 -1.0
             };
@@ -314,19 +298,21 @@ mod tests {
     fn test_bellman_optimality() {
         const EPSILON: f64 = 1e-12;
 
-        let optimizer = PolicyOptimizer::optimize(Ruleset::new(100, 6));
+        let ruleset = Ruleset::new(100, 6);
+        let optimizer = PolicyOptimizer::new(ruleset);
+        let policy = PolicyOptimizer::optimize(ruleset);
 
-        for (state, action) in optimizer.policy().iter() {
+        for (state, action) in policy.iter() {
             // Maximum possible optimal action.
-            let n_max = 2 * (optimizer.max() - state.active() + optimizer.sides())
-                / (optimizer.sides() + 1);
+            let n_max =
+                2 * (ruleset.max() - state.active() + ruleset.sides()) / (ruleset.sides() + 1);
             let stored_payoff = action.payoff();
 
             for n in 0..=n_max {
                 let computed = if state.last() {
                     optimizer.calc_terminal_payoff(state, n)
                 } else {
-                    optimizer.calc_normal_payoff(state, n)
+                    optimizer.calc_normal_payoff(&policy, state, n)
                 };
 
                 assert!(
@@ -343,7 +329,7 @@ mod tests {
 
     #[test]
     fn test_1_2_policy() {
-        let optimizer = PolicyOptimizer::optimize(Ruleset::new(1, 2));
+        let policy = PolicyOptimizer::optimize(Ruleset::new(1, 2));
 
         let expected = make_policy(
             &[
@@ -361,12 +347,12 @@ mod tests {
             1,
         );
 
-        assert_eq!(optimizer.policy(), &expected);
+        assert_eq!(policy, expected);
     }
 
     #[test]
     fn test_2_2_policy() {
-        let optimizer = PolicyOptimizer::optimize(Ruleset::new(2, 2));
+        let policy = PolicyOptimizer::optimize(Ruleset::new(2, 2));
 
         let expected = make_policy(
             &[
@@ -394,12 +380,12 @@ mod tests {
             2,
         );
 
-        assert_eq!(optimizer.policy(), &expected);
+        assert_eq!(policy, expected);
     }
 
     #[test]
     fn test_3_2_policy() {
-        let optimizer = PolicyOptimizer::optimize(Ruleset::new(3, 2));
+        let policy = PolicyOptimizer::optimize(Ruleset::new(3, 2));
 
         let expected = make_policy(
             &[
@@ -441,12 +427,12 @@ mod tests {
             3,
         );
 
-        assert_eq!(optimizer.policy(), &expected);
+        assert_eq!(policy, expected);
     }
 
     #[test]
     fn test_4_2_policy() {
-        let optimizer = PolicyOptimizer::optimize(Ruleset::new(4, 2));
+        let policy = PolicyOptimizer::optimize(Ruleset::new(4, 2));
 
         let expected = make_policy(
             &[
@@ -509,6 +495,6 @@ mod tests {
             4,
         );
 
-        assert_eq!(optimizer.policy(), &expected);
+        assert_eq!(policy, expected);
     }
 }

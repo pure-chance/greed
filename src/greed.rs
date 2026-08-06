@@ -1,6 +1,8 @@
 use std::fmt;
 use std::ops::{Index, IndexMut};
 
+use rayon::prelude::*;
+
 /// The ruleset for a game of Greed.
 ///
 /// The standard ruleset is `(100, 6)`.
@@ -181,7 +183,7 @@ impl Policy {
         Self { policy, max }
     }
 
-    /// Iterate over every `(State, Action)` pair in the table.
+    // Iterate over every `(State, Action)` pair in the table.
     pub fn iter(&self) -> impl Iterator<Item = (State, Action)> + '_ {
         (0..=self.max).flat_map(move |active| {
             (0..=self.max).flat_map(move |queued| {
@@ -192,6 +194,29 @@ impl Policy {
                 })
             })
         })
+    }
+
+    pub fn apply_to_states(
+        &mut self,
+        filter: impl Fn(State) -> bool + Sync,
+        map: impl Fn(State) -> Action + Sync,
+    ) {
+        let stride = self.max + 1;
+
+        self.policy
+            .par_iter_mut()
+            .enumerate()
+            .for_each(|(i, slot)| {
+                let i = i as u32;
+                let active = i % stride;
+                let queued = (i / stride) % stride;
+                let last = (i / (stride * stride)) != 0;
+
+                let state = State::new(active, queued, last);
+                if filter(state) {
+                    *slot = map(state)
+                }
+            });
     }
 
     /// Print the full policy to stdout in a human-readable format.

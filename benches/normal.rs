@@ -1,5 +1,5 @@
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
-use greed::{PolicyOptimizer, Ruleset, State};
+use greed::{PolicyOptimizer, Ruleset};
 
 fn normal_states(c: &mut Criterion) {
     let mut group = c.benchmark_group("normal_states");
@@ -12,46 +12,15 @@ fn normal_states(c: &mut Criterion) {
 
     for ruleset in RULESETS {
         // satisfy invariants
-        let mut optimizer = PolicyOptimizer::optimize(ruleset);
+        let optimizer = PolicyOptimizer::new(ruleset);
+        let mut policy = PolicyOptimizer::optimize(ruleset);
 
-        // Benchmark: solving normal states
+        // Benchmark: optimizing normal states
         group.bench_with_input(
-            BenchmarkId::new(
-                "optimize",
-                format!("M={},s={}", ruleset.max(), ruleset.sides()),
-            ),
+            BenchmarkId::from_parameter(format!("M={},s={}", ruleset.max(), ruleset.sides())),
             &ruleset,
             |b, _| {
-                b.iter(|| optimizer.optimize_normal_states());
-            },
-        );
-
-        // Benchmark: find optimal action
-        group.bench_with_input(
-            BenchmarkId::new(
-                "calc_optimal_payoff",
-                format!("M={},s={}", ruleset.max(), ruleset.sides()),
-            ),
-            &ruleset,
-            |b, _| {
-                b.iter(|| optimizer.find_optimal_normal_action(State::new(10, 10, false)));
-            },
-        );
-
-        // Benchmark: computing an optimal payoff
-        group.bench_with_input(
-            BenchmarkId::new(
-                "calc_payoff",
-                format!("M={},s={}", ruleset.max(), ruleset.sides()),
-            ),
-            &ruleset,
-            |b, _| {
-                b.iter(|| {
-                    optimizer.calc_normal_payoff(
-                        State::new(ruleset.max() / 2, ruleset.sides() / 2, false),
-                        3,
-                    )
-                });
+                b.iter(|| optimizer.optimize_normal_states(&mut policy));
             },
         );
     }

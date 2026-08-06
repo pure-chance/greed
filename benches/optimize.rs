@@ -13,10 +13,7 @@ fn all_states(c: &mut Criterion) {
     // Benchmark: complete optimization
     for ruleset in RULESETS {
         group.bench_with_input(
-            BenchmarkId::new(
-                "optimize",
-                format!("M={},s={}", ruleset.max(), ruleset.sides()),
-            ),
+            BenchmarkId::from_parameter(format!("M={},s={}", ruleset.max(), ruleset.sides())),
             &ruleset,
             |b, &ruleset| {
                 b.iter(|| {

@@ -50,8 +50,7 @@ fn main() {
     let sides = *args.get_one::<u32>("sides").unwrap();
     let format = args.get_one::<String>("format").unwrap().as_str();
 
-    let optimizer = PolicyOptimizer::optimize(Ruleset::new(max, sides));
-    let policy = optimizer.policy();
+    let policy = PolicyOptimizer::optimize(Ruleset::new(max, sides));
 
     match format {
         "stdout" => policy.stdout(),
